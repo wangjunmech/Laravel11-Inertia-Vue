@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\ConfirmPasswordController;
 use App\Http\Controllers\ListingController;
 use App\Http\Controllers\AdminController;
 use App\Http\Middleware\Admin;
+use App\Http\Controllers\ExerciseController;
 
 // Route::get('/', function () {
 //     dd('Laravel 正常运行'); // 浏览器能看到这句话就代表框架没问题
@@ -58,6 +59,13 @@ route::middleware(['auth', 'verified', Admin::class])
         Route::get('/admin/details/{user}', 'details')->name('admin.details');
         Route::put('/listing/{listing}/approveListing', 'approveListing')->name('admin.approveListing');
     });
+
+//EXCERCISE Routes  ******************exerciseController******************
+Route::get('/exercise', [ExerciseController::class, 'index'])->name('exercise.index');
+Route::get('/exercise/dragDarkLight', [ExerciseController::class, 'dragDarkLight'])->name('exercise.dragDarkLight');
+Route::get('/exercise/{page}', [ExerciseController::class, 'showPage'])->name('exercise.showPage');
+
+
 
 //Auth Routes,引入的独立文件
 require __DIR__.'/auth.php';

@@ -2,14 +2,16 @@
 import Card from "../Components/Card.vue";
 import PaginationLinks from "../Components/PaginationLinks.vue";
 import InputField from "../Components/InputField.vue";
-import { Head, useForm, router, Link } from "@inertiajs/vue3";
+import { Head, useForm, router, Link, usePage } from "@inertiajs/vue3";
+
+
 
 // console.log(route().params);//user_id: "XXX"
 const params = route().params;//user_id: "XXX"
 
 const props = defineProps({
     listings: Object,
-    searchTerm: String,
+
 });
 
 const form = useForm({
@@ -22,7 +24,13 @@ const search = () => {
         user_id: params.user_id,
         tag: params.tag
     });
+
 };
+
+// //添加搜索高亮功能
+const page = usePage()
+
+
 
 </script>
 

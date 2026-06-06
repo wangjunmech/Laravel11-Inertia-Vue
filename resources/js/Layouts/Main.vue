@@ -23,6 +23,7 @@ const user = computed(() => page.props?.auth?.user ?? null);
             class="p-6 mx-auto max-w-screen-lg flex items-center justify-between"
         >
             <NavLink routeName="home" componentName="Home">Home</NavLink>
+            <NavLink routeName="exercise.index">Exercise</NavLink>
             <NavLink routeName="approvedbtn1" componentName="c1">email can V1</NavLink>
             <NavLink routeName="approvedbtn2" componentName="c2">email can V2</NavLink>
 

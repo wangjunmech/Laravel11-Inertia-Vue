@@ -1,6 +1,6 @@
 <script setup>
-import { router } from "@inertiajs/vue3";
-import { ref,onUpdated,onMounted } from "vue";
+import { computed } from 'vue'
+import { Head, useForm, router, Link, usePage, } from "@inertiajs/vue3";
 const params = route().params;
 
 const props = defineProps({
@@ -21,6 +21,27 @@ const selectTag = (tag) => {
         tag: tag
     });
 };
+
+const ctit=computed(() => {
+    return props.listing.title.length > 40
+        ? props.listing.title.substring(0, 40) + "..."
+        : props.listing.title;
+});
+
+// //********************* */
+    // const searchKey = computed(() => params.search || '')
+
+    // 关键词转义，防止正则特殊符号报错
+    const escapeReg = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+    // 高亮核心方法：原文+关键词 → 带高亮标签html
+    const highlight = (text, keyword) => {
+    if (!keyword) return text
+    const reg = new RegExp(`(${escapeReg(keyword)})`, 'gi')
+    // 红色背景高亮，和你搜索框底色统一
+    return text.replace(reg, `<span class="bg-yellow-200">$1</span>`)
+    }
+// console.log(params.search);
 </script>
 
 <template>     
@@ -45,8 +66,8 @@ const selectTag = (tag) => {
             <!-- Title & user -->
             <div class="p-4">
                 <h3 class="font-bold text-xl mb-2">
-                    <a :href="route('listing.show', listing.id)">
-                    {{ listing.title.substring(0, 40) }}...
+                    <a :href="route('listing.show', listing.id)">                    
+                    <h2 v-html="highlight(ctit, params.search)" class="text-xl font-bold"></h2>
                     </a>
                 </h3>
 
