@@ -66,8 +66,9 @@ const exportToTxt = () => {
     const dataStr = JSON.stringify(treeData.value, null, 2)
     
     // 2. 创建 Blob 对象，指定类型为文本/明文
-    const blob = new Blob([dataStr], { type: 'text/plain;charset=utf-8' })
-    
+    const blob = new Blob([dataStr], { type: 'text/plain;charset=utf-8' })  //指定类型为文本----导出txt文件      
+    // const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8' })//指定类型为json----导出json文件
+
     // 3. 创建一个虚拟的 <a> 标签
     const downloadLink = document.createElement('a')
     
@@ -91,7 +92,7 @@ const exportToTxt = () => {
 
 <style scoped>
 .tree-container {
-  width:800px;
+  width:1400px;
   margin: 30px auto;  
   border: 1px solid #e0e0e0;
   border-radius: 8px;

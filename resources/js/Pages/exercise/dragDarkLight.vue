@@ -45,6 +45,7 @@ const dragEnd = () => {
 </script>
 
 <template>
+  <Head title="-Details,拖动效果" />
 <div class="flex flex-col items-center justify-center gap-6 py-8">
     <div>Details,拖动效果</div>
     <div id="compare-wrap" class="relative w-[375px] h-[620px] overflow-hidden rounded-xl select-none">

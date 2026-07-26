@@ -1,0 +1,44 @@
+下载**Precompiled Binaries for Windows下面的**sqlite-tools-win-x64-3530400.zip(6.25 MiB)
+
+解压并把.exe文件放在laravel项目目录下
+
+shift+右键选择“在终端中打开”会打开powerShell,
+
+输入数据库路径使命：**.\sqlite3.exe database/database.sqlite**进入数据库命令行
+
+Sqlite3操作命令记录
+更多操作命令教程: https://www.codewhy.net/sqlite/1691.html
+
+
+PS D:\Study\L\Laravel11-Inertia-Vue\database> cd .                                               
+PS D:\Study\L\Laravel11-Inertia-Vue\database> cd ..                                              
+PS D:\Study\L\Laravel11-Inertia-Vue> .\sqlite3.exe database/database.sqlite                      
+SQLite version 3.53.4 2026-07-24 19:02:57                                                        
+Enter ".help" for usage hints.                                                                   
+sqlite> .tables;                                                                                 
+bom_items        cache           failed_jobs     jobs         materials      password_reset_tokens     sessions                                                                                   
+bom_versions     cache_locks     job_batches     listings     migrations     products                  users                                                                                      
+sqlite>    
+
+#插入数据到materials表中
+                                                                    
+PS D:\Study\L\Laravel11-Inertia-Vue> .\sqlite3.exe database/database.sqlite                      
+SQLite version 3.53.4 2026-07-24 19:02:57                                                        
+Enter ".help" for usage hints.                                                                   
+sqlite> INSERT INTO materials (code,name,spec,unit,price) VALUES ('PC001','PC透明料','PC透明料','g',22);                                                                                          
+sqlite>      
+
+#插入数据到materials表中，自动插入当前时间的语句
+INSERT INTO materials 
+(code,name,spec,unit,price,created_at,updated_at) 
+VALUES 
+('PMMA002','PMMA磨砂料','PMMA哑光磨砂','g',25,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP);    
+
+#如果后续修改这条记录，想让 updated_at 自动刷新时间
+UPDATE materials SET price=26, updated_at=CURRENT_TIMESTAMP WHERE id=3;      
+
+sqlite> SELECT * FROM materials;
+
+
+
+                          

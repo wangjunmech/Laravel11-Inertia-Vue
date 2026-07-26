@@ -34,11 +34,11 @@ const ctit=computed(() => {
     // 关键词转义，防止正则特殊符号报错
     const escapeReg = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-    // 高亮核心方法：原文+关键词 → 带高亮标签html
+    // 搜索结果高亮显示，关键词加黄色背景：原文+关键词 → 带高亮标签html
     const highlight = (text, keyword) => {
     if (!keyword) return text
     const reg = new RegExp(`(${escapeReg(keyword)})`, 'gi')
-    // 红色背景高亮，和你搜索框底色统一
+    // 黄色背景高亮，和搜索框底色统一
     return text.replace(reg, `<span class="bg-yellow-200">$1</span>`)
     }
 // console.log(params.search);

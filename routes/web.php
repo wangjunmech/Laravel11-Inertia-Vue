@@ -10,6 +10,7 @@ use App\Http\Controllers\ListingController;
 use App\Http\Controllers\AdminController;
 use App\Http\Middleware\Admin;
 use App\Http\Controllers\ExerciseController;
+use App\Http\Controllers\BomController;
 
 // Route::get('/', function () {
 //     dd('Laravel 正常运行'); // 浏览器能看到这句话就代表框架没问题
@@ -63,8 +64,17 @@ route::middleware(['auth', 'verified', Admin::class])
 //EXCERCISE Routes  ******************exerciseController******************
 Route::get('/exercise', [ExerciseController::class, 'index'])->name('exercise.index');
 Route::get('/exercise/dragDarkLight', [ExerciseController::class, 'dragDarkLight'])->name('exercise.dragDarkLight');
+//多页共用一个控制器方法，参数为页码，在控制器方法中根据页码返回不同的视图
 Route::get('/exercise/{page}', [ExerciseController::class, 'showPage'])->name('exercise.showPage');
 
+//exercise控制器上传图片的路由
+Route::patch('/exercise/storeImages', [ExerciseController::class, 'storeImages'])->name('exercise.storeImages');
+
+
+//BOM Routes  ******************BomController******************
+Route::get('/bom/edit/{versionId}', [BomController::class, 'edit'])->name('bom.edit');
+Route::post('/bom/save/{versionId}', [BomController::class, 'save'])->name('bom.save');
+Route::post('/bom/copy/{versionId}', [BomController::class, 'copyVersion'])->name('bom.copy');
 
 
 //Auth Routes,引入的独立文件

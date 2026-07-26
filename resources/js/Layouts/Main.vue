@@ -3,6 +3,9 @@ import { computed, ref } from "vue";
 import { switchTheme } from "../theme";
 import NavLink from "../Components/NavLink.vue";
 import { useForm, Link, usePage } from "@inertiajs/vue3";
+import { useAppStore } from '../stores/app.js'// 直接从Store的 app.js 导入pinia
+const appStore = useAppStore()
+
 
 const page = usePage();
 // const name = computed(() => page.props.auth.user.name);//老是页面显示不正常，计算属性为为user如下面一样，使用v-if="user"来判断，用v-if="user.name"来判断也老是显示不正常
@@ -10,6 +13,11 @@ const show = ref(false);
 // const user = computed(() => page.props.auth.user);
 const user = computed(() => page.props?.auth?.user ?? null);
 // let show = false;
+appStore.navShow = 1;//控制头部菜单显示
+// 判断当前是否是文件管理器页面，路由名自行匹配你的文件管理路由
+const isFileManagerPage = computed(() => page.route === 'exercise.showPage')
+// const isFileManagerPage = computed(() => page.component === 'exercise/e13')
+console.log('当前路由名：', page.route, '是否文件页：', isFileManagerPage.value)
 </script>
 
 <template>
@@ -18,9 +26,13 @@ const user = computed(() => page.props?.auth?.user ?? null);
 </div>
  -->
     <div v-show="show" @click="show = false" class="fixed inset-0 z-40"></div>
-    <header class="bg-slate-800 text-white">
+    <header v-show="appStore.navShow" class="bg-slate-800 text-white">
+        <!-- 路由判断：文件页全屏，其余页面保持原来max-w居中 -->
         <nav
-            class="p-6 mx-auto max-w-screen-lg flex items-center justify-between"
+            :class="[
+                'p-6 flex items-center justify-between',
+                isFileManagerPage ? 'w-full' : 'mx-auto max-w-screen-lg'
+            ]"
         >
             <NavLink routeName="home" componentName="Home">Home</NavLink>
             <NavLink routeName="exercise.index">Exercise</NavLink>
@@ -92,7 +104,12 @@ const user = computed(() => page.props?.auth?.user ?? null);
         </nav>
     </header>
 
-    <main class="p-6 mx-auto max-w-screen-lg">
+    <main
+    :class="isFileManagerPage ? 'w-full p-0' : 'p-2 mx-auto max-w-screen-x1'"
+    >
+    <!-- class="p-6 mx-auto max-w-screen-lg" -->
+    <!-- class="p-6 mx-auto max-w-screen-x1" -->
+    <!-- <main class="页面内容区域宽度选择样式控制"> -->
         <slot />
     </main>
 </template>
