@@ -38,7 +38,7 @@
 
       <!-- 左侧节点名称区域 -->
       <div class="flex flex-1 items-center bg-red-200">
-        <!-- 编辑按钮下拉菜单容器 -->
+        <!-- 编辑按钮下拉菜单容器（铅笔） -->
         <div class="relative inline-block mr-1" v-click-outside="closeAllMenu">
           <div
             title="单击打开快捷添加操作菜单"
@@ -52,15 +52,15 @@
           >
             <div
               class="px-3 py-1.5 text-sm cursor-pointer hover:bg-gray-100 transition-colors"
-              @click="handleAddSibling(item, index)"
+              @click.stop="handleAddSibling(item, index)"
             >添加（同级）</div>
             <div
               class="px-3 py-1.5 text-sm cursor-pointer hover:bg-gray-100 transition-colors"
-              @click="handleAddChild(item)"
+              @click.stop="handleAddChild(item)"
             >添加子物料</div>
             <div
               class="px-3 py-1.5 text-sm cursor-pointer hover:bg-gray-100 text-red-500 transition-colors"
-              @click="handleDelete(index)"
+              @click.stop="handleDelete(index)"
             >删除</div>
           </div>
         </div>
@@ -85,69 +85,87 @@
       </div>
       
       <div class="flex rounded-lg bg-blue-400 m-2 px-5 items-center justify-center min-w-[50px]">
-        <!-- 全局流水序号：仅替换插值，DOM结构完全保留 -->
-        
-          {{ item.sn }}
-        
+        {{ item.sn }}
       </div>
 
-      <!-- 8个BOM字段可点击编辑单元格 -->
+      <!-- BOM多字段单元格区域 -->
       <div class="flex">
-        <!-- 1.产品编号【新增重复校验】 -->
-        <!-- 编辑按钮下拉菜单容器 -->
-        <div class="relative inline-block mr-1 flex bg-green-400 m-2 px-2 items-center justify-center min-w-[110px] cursor-pointer" v-click-outside="closeItemMenu">
+        <!-- 产品编号 下拉菜单 -->
+        <div class="relative inline-block mr-1 flex bg-green-400 m-2 px-2 items-center justify-center min-w-[110px] cursor-pointer">
           <div
-            title="单击打开物料相关查询操作菜单"
+            title="单击打开物料查询菜单"
             @click.stop="toggleItemMenu(item.id)"
-          >{{ item.label }}</div>
+          >
+            {{ item.label }}
+          </div>
 
           <div
             v-if="activeItemId === item.id"
             class="absolute z-50 top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg py-1 min-w-[115px] max-w-[220px] overflow-hidden"
+            v-click-outside="closeItemMenu"
           >
             <div
               class="px-3 py-1.5 text-sm cursor-pointer hover:bg-gray-100 transition-colors"
-              @click="ItemDetail(item, index)"
+              @click.stop="ItemDetail(item, index)"
             >物料详情</div>
             <div
               class="px-3 py-1.5 text-sm cursor-pointer hover:bg-gray-100 transition-colors"
-              @click="WhereToUse(item)"
+              @click.stop="WhereToUse(item)"
             >使用场合</div>
-
           </div>
         </div>
 
-        <!-- 2.品名英文 -->
-        <div class="flex bg-green-400 m-2 px-2 items-center justify-center min-w-[60px]">
+        <!-- 品名英文 -->
+        <div class="flex bg-green-400 m-2 px-2 items-center justify-center min-w-[110px] cursor-pointer">
           <input
             v-if="item.editField === 'nameEn'"
             v-model="item.nameEn"
             @blur="saveField(item)"
             @keyup.enter="saveField(item)"
-            class="w-28 border border-blue-500 px-1 py-0.5 text-sm outline-none"
+            class="w-full border border-blue-500 px-1 py-0.5 text-sm outline-none"
             v-focus
           />
-          <span v-else @click="openEditField(item, 'nameEn')" class="cursor-pointer text-sm">
-            {{ item.nameEn }}
-          </span>
+          <div 
+            v-else 
+            class="w-full min-w-0 cursor-pointer text-center"
+            @click="openEditField(item, 'nameEn')"
+          >
+            <span 
+              class="block truncate"
+              style="max-width: 9ch;"
+              :title="item.nameEn"
+            >
+              {{ item.nameEn }}
+            </span>
+          </div>
         </div>
 
-        <!-- 3.品名中文 -->
-        <div class="flex bg-green-400 m-2 px-2 items-center justify-center min-w-[60px]">
+        <!-- 品名中文 -->
+        <div class="flex bg-green-400 m-2 px-2 items-center justify-center min-w-[110px] cursor-pointer">
           <input
             v-if="item.editField === 'nameCn'"
             v-model="item.nameCn"
             @blur="saveField(item)"
             @keyup.enter="saveField(item)"
-            class="w-28 border border-blue-500 px-1 py-0.5 text-sm outline-none"
+            class="w-full border border-blue-500 px-1 py-0.5 text-sm outline-none"
             v-focus
           />
-          <span v-else @click="openEditField(item, 'nameCn')" class="cursor-pointer text-sm">
-            {{ item.nameCn }}
-          </span>
+          <div 
+            v-else 
+            class="w-full min-w-0 cursor-pointer text-center"
+            @click="openEditField(item, 'nameCn')"
+          >
+            <span 
+              class="block truncate"
+              style="max-width: 9ch;"
+              :title="item.nameCn"
+            >
+              {{ item.nameCn }}
+            </span>
+          </div>
         </div>
 
-        <!-- 4.用量 -->
+        <!-- 用量 -->
         <div class="flex bg-red-200 m-2 px-2 items-center justify-center rounded-sm min-w-[60px]">
           <input
             v-if="item.editField === 'quantity'"
@@ -163,8 +181,8 @@
           </span>
         </div>
 
-        <!-- 5.单位 -->
-        <div class="flex bg-red-400 m-2 px-2 items-center justify-center rounded-sm min-w-[70px]">
+        <!-- 单位 -->
+        <div class="flex bg-red-400 m-2 px-2 items-center justify-center rounded-sm min-w-[50px]">
           <input
             v-if="item.editField === 'unit'"
             v-model="item.unit"
@@ -178,7 +196,7 @@
           </span>
         </div>
 
-        <!-- 6.损耗率 -->
+        <!-- 损耗率 -->
         <div class="flex bg-green-400 m-2 px-2 items-center justify-center min-w-[100px]">
           <input
             v-if="item.editField === 'wasteRate'"
@@ -194,7 +212,7 @@
           </span>
         </div>
 
-        <!-- 7.采购单价 -->
+        <!-- 采购单价 -->
         <div class="flex bg-green-400 m-2 px-2 items-center justify-center min-w-[100px]">
           <input
             v-if="item.editField === 'price'"
@@ -210,7 +228,7 @@
           </span>
         </div>
 
-        <!-- 8.小计 只读 -->
+        <!-- 小计 只读 -->
         <div class="flex bg-green-400 m-2 px-2 items-center justify-center min-w-[100px]">
           <span class="text-sm font-semibold">{{ item.subtotal.toFixed(2) }}</span>
         </div>
@@ -285,11 +303,17 @@ const props = defineProps({
 
 const emit = defineEmits(['update:bom-data'])
 
+// 顶层变量声明
 let globalDraggingId, globalDropTargetId, globalDropPosition, executeGlobalMove, rootbomRef
-let globalMaxId, isVerifying, activeMenuId, closeAllMenu, toggleMenu, vClickOutside,activeItemId,toggleItemMenu
-// 【新增】全局序号刷新方法变量
+let globalMaxId, isVerifying, activeMenuId, closeAllMenu, toggleMenu, vClickOutside
 let refreshSerialNumber
+let activeItemId, toggleItemMenu, closeItemMenu, ItemDetail, WhereToUse
 
+const localShowInfo = ref(props.showIdLevel)
+watch(() => props.showIdLevel, (v) => { localShowInfo.value = v })
+const vFocus = { mounted: el => el.focus() }
+
+// 非根层级：全部注入接收
 if (props.level !== 0) {
   globalDraggingId = inject('globalDraggingId')
   globalDropTargetId = inject('globalDropTargetId')
@@ -299,36 +323,56 @@ if (props.level !== 0) {
   globalMaxId = inject('globalMaxId')
   isVerifying = inject('globalIsVerifying')
   activeMenuId = inject('activeMenuId')
-  activeItemId = inject('activeItemId') 
   closeAllMenu = inject('closeAllMenu')
   toggleMenu = inject('toggleMenu')
-  toggleItemMenu = inject('toggleItemMenu')
   vClickOutside = inject('vClickOutside')
-  // 【新增子组件接收刷新函数】
   refreshSerialNumber = inject('refreshSerialNumber')
+
+  // 物料下拉菜单全套注入接收
+  activeItemId = inject('activeItemId')
+  toggleItemMenu = inject('toggleItemMenu')
+  closeItemMenu = inject('closeItemMenu')
+  ItemDetail = inject('ItemDetail')
+  WhereToUse = inject('WhereToUse')
 } else {
+  // ==================== 根层级初始化所有全局状态与函数 ====================
   globalDraggingId = ref(null)
   globalDropTargetId = ref(null)
   globalDropPosition = ref(null)
   rootbomRef = props.bomData
   globalMaxId = ref(0)
   isVerifying = ref(false)
+
+  // 铅笔菜单状态
   activeMenuId = ref(null)
-  activeItemId = ref(null)
   closeAllMenu = () => {
     activeMenuId.value = null
     activeItemId.value = null
   }
-
-  // 切换快捷编辑菜单显示状态，显示或不显示 
   toggleMenu = (nodeId) => {
+    activeItemId.value = null
     activeMenuId.value = activeMenuId.value === nodeId ? null : nodeId
   }
 
+  // 产品编号物料下拉菜单状态
+  activeItemId = ref(null)
+  closeItemMenu = () => {
+    activeItemId.value = null
+  }
   toggleItemMenu = (nodeId) => {
+    activeMenuId.value = null
     activeItemId.value = activeItemId.value === nodeId ? null : nodeId
   }
+  ItemDetail = () => {
+    activeItemId.value = null
+    // 此处可后续写打开详情弹窗逻辑
+  }
+  WhereToUse = () => {
+    activeItemId.value = null
+    // 此处可后续写使用场合逻辑
+  }
 
+  // 自定义点击外部关闭指令
   vClickOutside = {
     mounted(el, binding) {
       if (el._outsideHandler) return
@@ -345,6 +389,7 @@ if (props.level !== 0) {
     }
   }
 
+  // 计算最大ID
   const initMaxId = (nodes) => {
     let max = 0
     const loop = (arr) => {
@@ -359,7 +404,7 @@ if (props.level !== 0) {
   }
   globalMaxId.value = initMaxId(props.bomData)
 
-  // ===================== 【纯新增】DFS全局流水序号逻辑 =====================
+  // DFS全局流水序号
   refreshSerialNumber = (tree = rootbomRef) => {
     let num = 0
     const dfs = (list) => {
@@ -370,15 +415,13 @@ if (props.level !== 0) {
     }
     dfs(tree)
   }
-  // 首次加载自动编号
   refreshSerialNumber()
-  // 监听外部传入数据变化，重新排序号
   watch(() => props.bomData, () => {
     rootbomRef = props.bomData
     refreshSerialNumber()
   }, { deep: true })
-  // ======================================================================
 
+  // 全部全局变量向下注入（子组件可拿到）
   provide('globalDraggingId', globalDraggingId)
   provide('globalDropTargetId', globalDropTargetId)
   provide('globalDropPosition', globalDropPosition)
@@ -389,17 +432,18 @@ if (props.level !== 0) {
   provide('activeMenuId', activeMenuId)
   provide('closeAllMenu', closeAllMenu)
   provide('toggleMenu', toggleMenu)
-  provide('toggleItemMenu', toggleItemMenu) 
   provide('vClickOutside', vClickOutside)
-  // 【新增注入序号刷新函数】
   provide('refreshSerialNumber', refreshSerialNumber)
+
+  // 物料菜单相关注入
+  provide('activeItemId', activeItemId)
+  provide('toggleItemMenu', toggleItemMenu)
+  provide('closeItemMenu', closeItemMenu)
+  provide('ItemDetail', ItemDetail)
+  provide('WhereToUse', WhereToUse)
 }
 
-const localShowInfo = ref(props.showIdLevel)
-watch(() => props.showIdLevel, (v) => { localShowInfo.value = v })
-const vFocus = { mounted: el => el.focus() }
-
-// 新建节点默认模板【追加 sn: 0】
+// 新建节点默认模板
 const getDefaultNode = (nodeId, nodeName) => ({
   id: nodeId,
   label: nodeName,
@@ -409,7 +453,7 @@ const getDefaultNode = (nodeId, nodeName) => ({
   isEdit: true,
   isNew: true,
   editField: null,
-  sn: 0, // 新增全局序号初始值
+  sn: 0,
   productSn: 'x000001',
   nameEn: 'labelcover',
   nameCn: '标签外壳',
@@ -426,9 +470,8 @@ const openEditField = (item, fieldKey) => {
   item.editField = fieldKey
 }
 
-// ========== 核心修改：重写saveField，增加productSn唯一性校验 ==========
+// 保存字段+小计计算+编号查重
 const saveField = (item, event) => {
-  // 只针对产品编号做重复校验
   if(item.editField === 'productSn'){
     const inputSn = item.productSn.trim()
     if(!inputSn){
@@ -436,18 +479,13 @@ const saveField = (item, event) => {
       event?.target?.focus()
       return
     }
-
-    // 校验编号是否重复
     let isRepeat = false
     if(props.noRepeatName){
-      // 全局唯一：遍历整棵树
       isRepeat = checkProductSnGlobal(inputSn, rootbomRef, item.id)
     }else{
-      // 同级局部唯一：只校验当前父节点下所有同级节点
       const siblingList = getCurrentSiblings(item, rootbomRef)
       isRepeat = checkProductSnSibling(inputSn, siblingList, item.id)
     }
-
     if(isRepeat){
       alert(props.noRepeatName ? '该产品编号在整个BOM中已存在，不可重复' : '同级下该产品编号已存在，请更换')
       event?.target?.focus()
@@ -455,46 +493,35 @@ const saveField = (item, event) => {
     }
   }
 
-  // 原有全部计算逻辑保留不动
   item.editField = null
   item.subtotal = Number((item.quantity * item.price * (1 + item.wasteRate / 100)).toFixed(2))
   emit('update:bom-data', [...props.bomData])
-  refreshSerialNumber() // 新增：保存后刷新全局序号
+  refreshSerialNumber()
 }
 
-// 全局遍历校验产品编号
+// 全局校验产品编号重复
 const checkProductSnGlobal = (sn, treeNodes, excludeId) => {
   for(const node of treeNodes){
-    if(node.productSn === sn && node.id !== excludeId){
-      return true
-    }
-    if(node.children && node.children.length){
-      if(checkProductSnGlobal(sn, node.children, excludeId)){
-        return true
-      }
+    if(node.productSn === sn && node.id !== excludeId) return true
+    if(node.children?.length){
+      if(checkProductSnGlobal(sn, node.children, excludeId)) return true
     }
   }
   return false
 }
 
-// 获取当前节点所有同级节点数组
+// 获取同级节点
 const getCurrentSiblings = (targetItem, tree) => {
-  // 查找父节点
   const parent = findParentGlobal(targetItem.id, tree)
-  if(parent){
-    return parent.children
-  }else{
-    // 根层级节点，同级就是根数组
-    return tree
-  }
+  return parent ? parent.children : tree
 }
 
-// 同级范围内校验产品编号
+// 同级校验产品编号
 const checkProductSnSibling = (sn, siblingArr, excludeId) => {
   return siblingArr.some(node => node.productSn === sn && node.id !== excludeId)
 }
 
-// 新增同级节点
+// 新增同级
 const addSibling = (idx) => {
   if (props.level == 0) {
     alert('根节点禁止新增同级节点！')
@@ -508,7 +535,7 @@ const addSibling = (idx) => {
   const list = [...props.bomData]
   list.splice(idx + 1, 0, newNode)
   emit('update:bom-data', list)
-  refreshSerialNumber() // 新增
+  refreshSerialNumber()
 }
 
 // 新增子节点
@@ -522,7 +549,7 @@ const addChild = (item) => {
   item.children.push(newField)
   item.isOpen = true
   emit('update:bom-data', [...props.bomData])
-  refreshSerialNumber() // 新增
+  refreshSerialNumber()
 }
 
 // 删除节点
@@ -541,10 +568,11 @@ const deleteNode = (index) => {
     const updatedData = [...props.bomData]
     updatedData.splice(index, 1)
     emit('update:bom-data', updatedData)
-    refreshSerialNumber() // 新增
+    refreshSerialNumber()
   }
 }
 
+// 铅笔菜单点击事件
 const handleAddSibling = (item, idx) => {
   addSibling(idx)
   closeAllMenu()
@@ -558,12 +586,12 @@ const handleDelete = (idx) => {
   closeAllMenu()
 }
 
+// 节点名称编辑
 const startEdit = (item) => {
   item.tempLabel = item.label
   item.isEdit = true
 }
 
-// 保存节点名称（修复了你原有变量未定义报错）
 const saveLabel = (item, siblingsArr, event) => {
   if (!item.isEdit || isVerifying.value) return
 
@@ -579,7 +607,7 @@ const saveLabel = (item, siblingsArr, event) => {
     }, 50)
     return
   }
-  // 调用复用校验函数
+
   const hasRepeat = checkLabelRepeat(trimmedLabel, item, siblingsArr, rootbomRef, props.noRepeatName)
   if (hasRepeat) {
     alert(props.noRepeatName ? '该名称整BOM内已存在，不可重复' : '同级目录下该名称已存在，请更换')
@@ -590,16 +618,14 @@ const saveLabel = (item, siblingsArr, event) => {
     return
   }
 
- 
   item.label = trimmedLabel
   item.isEdit = false
   item.isNew = false
   delete item.tempLabel
   emit('update:bom-data', [...props.bomData])
-  refreshSerialNumber() // 新增
+  refreshSerialNumber()
 }
 
-// 原有名称重复校验函数
 const checkLabelRepeat = (label, currentItem, siblings, tree, isGlobal) => {
   if(isGlobal){
     return checkLabelExistsGlobal(label, tree, currentItem.id)
@@ -611,10 +637,10 @@ const checkLabelRepeat = (label, currentItem, siblings, tree, isGlobal) => {
 const updateChildren = (item, newChildren) => {
   item.children = newChildren
   emit('update:bom-data', [...props.bomData])
-  refreshSerialNumber() // 新增
+  refreshSerialNumber()
 }
 
-// 拖拽相关
+// 拖拽全套逻辑
 const handleDragStart = (event, item) => {
   globalDraggingId.value = item.id
   event.dataTransfer.effectAllowed = 'move'
@@ -698,14 +724,13 @@ function rootMoveNodeCenter(dragId, targetId, position) {
       siblings.splice(tIndex + 1, 0, dragNode)
     }
   }
-  // 拖拽完成刷新序号
   refreshSerialNumber(fullbom)
   emit('update:bom-data', fullbom)
 }
 </script>
 
 <script>
-// 全局工具函数 100% 原样保留未修改
+// 全局工具函数 完整保留
 const checkLabelExistsGlobal = (label, nodes, currentId) => {
   for (const node of nodes) {
     const activeLabel = node.isEdit && node.tempLabel ? node.tempLabel : node.label
@@ -719,20 +744,11 @@ const checkLabelExistsGlobal = (label, nodes, currentId) => {
 
 const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-/**
- * 生成物料编号
- * @param tree 整棵树数据
- * @param siblings 当前同级数组（同级模式才用）
- * @param prefix 前缀
- * @param len 数字位数
- * @param isGlobal 全局唯一开关,用于判断编号无重复是全局模式还是同级模式
- */
 function generateUniqueLabel(tree, siblings, prefix, len, isGlobal) {
   let maxNum = 0
-  const reg = new RegExp(`^${escapeReg(prefix)}(\\d+)$`)
+  const reg = new RegExp(`^${escapeRegExp(prefix)}(\\d+)$`)
 
   if (isGlobal) {
-    // 全局模式：遍历整棵树所有节点
     const traverse = (list) => {
       list.forEach(node => {
         const match = node.label.match(reg)
@@ -745,7 +761,6 @@ function generateUniqueLabel(tree, siblings, prefix, len, isGlobal) {
     }
     traverse(tree)
   } else {
-    // 同级模式：只遍历当前父节点下的同级节点
     siblings.forEach(node => {
       const match = node.label.match(reg)
       if (match) {
@@ -759,10 +774,7 @@ function generateUniqueLabel(tree, siblings, prefix, len, isGlobal) {
   return prefix + newNum.toString().padStart(len, '0')
 }
 
-// 正则转义工具
-function escapeReg(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
+const escapeReg = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 const findNodeGlobal = (id, nodes) => {
   for (const node of nodes) {
@@ -808,3 +820,14 @@ const isDescendantGlobal = (parent, childNode) => {
   return false
 }
 </script>
+
+<style scoped>
+/* 左侧节点名称盒子 固定宽度+文字截断 */
+.name-box {
+  width: 220px;       /* 固定统一宽度，可按需调大小 */
+  flex-shrink: 0;     /* 绝不被压缩 */
+  white-space: nowrap;/* 文字禁止换行 */
+  overflow: hidden;   /* 超出隐藏 */
+  text-overflow: ellipsis; /* 末尾显示...省略号 */
+}
+</style>
