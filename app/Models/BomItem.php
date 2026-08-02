@@ -15,7 +15,8 @@ class BomItem extends Model
         'qty',
         'loss_rate',
         'sort',
-        'subtotal'
+        'subtotal',
+        'unit',
     ];
 
     // 子节点无限递归

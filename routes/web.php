@@ -77,6 +77,9 @@ Route::post('/bom/save/{versionId}', [BomController::class, 'save'])->name('bom.
 Route::post('/bom/copy/{versionId}', [BomController::class, 'copyVersion'])->name('bom.copy');
 
 
+//BOM2 Routes  ******************BomController******************
+Route::get('/bom/bom2', [BomController::class, 'bom2'])->name('bom2');
+
 //Auth Routes,引入的独立文件
 require __DIR__.'/auth.php';
 

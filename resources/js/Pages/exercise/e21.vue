@@ -4,14 +4,14 @@
       <div class="tree-header mb-6">
         <h4>BOM编号生成器</h4>
         <Link
-        :href="route('bom.edit', { versionId: 1 })"
+        :href="route('bom.edit', { versionId: 5 })"
         class="inline-block bg-red-400 px-6 py-1 hover:bg-slate-700 text-left rounded-lg w-fit"
         >BOM</Link>
         <a
-          :href="route('bom.edit', { versionId: 1 })"
+          :href="route('bom2')"
           class="inline-block bg-blue-400 px-6 py-1 hover:bg-slate-700 text-left rounded-lg w-fit"
         >
-          点击跳转到BOM,功能与上面链接相同
+          点击跳转到BOM2
         </a>
       </div>
       <div>BOM物料表规则数位说明：       

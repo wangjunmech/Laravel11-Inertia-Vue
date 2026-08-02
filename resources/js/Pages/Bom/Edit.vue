@@ -1,12 +1,21 @@
 <template>
   <div class="p-6 bg-gray-50 min-h-screen">
+    <!-- 消息弹窗：status由计算属性实时跟随props变化，开关由pinia控制 -->
+      <SessionMessages ref="sessionMsgRef"
+      :status="props.status" 
+      v-if="appStore.showFlag"
+    />
+<!-- {{ appStore.showFlag }} -->
+<!-- {{ page.value.flash }} -->
     <!-- 顶部操作栏 -->
     <div class="bg-white p-4 rounded shadow mb-4 flex justify-between items-center">
       <div>
         <h2 class="text-xl font-bold">BOM物料清单:<span class="bg-red-300">http://localhost:8000/bom/edit/5</span></h2>
         <p class="text-sm text-gray-500 mt-1">
           当前版本：{{ bomVersion.version_no }}
-          <div v-if="bomStore.isEdited" class="text-orange-500 ml-2 bg-yellow-200 w-auto inline-flex w-fit p-2 px-10 border-red-600 rounded-lg"><b>存在未保存修改</b></div>
+          <div v-if="bomStore.isEdited" class="text-orange-500 ml-2 bg-yellow-200 w-auto inline-flex w-fit p-2 px-10 border-red-600 rounded-lg">
+            <b>存在未保存修改</b>
+          </div>
         </p>
       </div>
       <div class="flex gap-2">
@@ -28,7 +37,6 @@
         :tree="treeOptions"
         scroll-x
       >
-       
       </n-data-table>
     </div>
 
@@ -50,15 +58,35 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, h } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { ref, computed, watch, nextTick, h, onMounted, onBeforeUnmount } from 'vue'
+import { router, usePage } from '@inertiajs/vue3'
 import { useBomStore } from '@/stores/bomStore'
 import { flattenTree, calcTotalCost } from '@/utils/bomCalc'
 import { exportBomExcel } from '@/utils/excel'
-import { NInputNumber, NButton, NSelect, NDataTable } from 'naive-ui'
+import { NInputNumber, NButton, NSelect, NDataTable, NDropdown } from 'naive-ui'
 import { debounce } from 'lodash'
-
+import SessionMessages from "../../Components/SessionMessages.vue"
 import MaterialSelectModal from '@/components/MaterialSelectModal.vue'
+import { useAppStore } from '@/stores/app.js'
+
+const appStore = useAppStore();
+const bomStore = useBomStore();
+const page = usePage()
+// appStore.setShowFlag(true);
+// 接收后端传入的status参数
+const props = defineProps({
+  bomTree: Array,
+  bomVersion: Object,
+  product: Object,
+  materialList: {
+    type: Array,
+    default: () => []
+  },
+  status: String,
+  trigger: Number
+})
+
+
 
 // 1. 安全判断某个字段是否被编辑过（全面兼容 Set、数组、普通对象）
 const isFieldEdited = (row, fieldName) => {
@@ -89,19 +117,27 @@ const materialModalShow = ref(false)
 // 记录当前要回填数据的行
 const currentEditRow = ref(null)
 
+// onMounted(() => {
+//   router.on('finish', () => {
+//     const msg = page.value?.flash?.status
+//     if (msg) {
+//       console.log('收到后端消息：', msg)
+//       appStore.setShowFlag(true)
+//     }
+//   })
+// })
+
 // 接收弹窗选中的物料，回填到当前行
 const handleChooseMaterial = (materialItem) => {
   console.log("父组件收到选中物料：", materialItem)
   if (!currentEditRow.value || !materialItem) return
 
-  // 记录要匹配的目标ID（统一转成 String 或使用宽松比较，防止类型不匹配）
   const targetId = currentEditRow.value.id
   console.log("正在当前树中查找的目标行 ID:", targetId)
 
   let targetNode = null
   const findAndModify = (list) => {
     for (const item of list) {
-      // 使用双等号 == 宽松比较，兼容字符串与数字 ID 的匹配
       if (item.id == targetId) {
         targetNode = item
         return true
@@ -110,32 +146,81 @@ const handleChooseMaterial = (materialItem) => {
     }
     return false
   }
-  
+
   findAndModify(bomStore.bomTree)
-  
+
   if (!targetNode) {
     console.warn("未能在树形结构中找到匹配的节点，ID为:", targetId)
     return
   }
 
-  // 成功找到节点，绑定物料信息
   targetNode.material_id = materialItem.id
   targetNode.material = { ...materialItem }
-
-  // 累加标记编码和名称
+  targetNode.unit = materialItem.unit || 'pcs'
   markFieldEdited(targetNode, 'code')
   markFieldEdited(targetNode, 'name')
+  markFieldEdited(targetNode, 'unit')
 
-  // 触发 Vue 响应式更新
   bomStore.isEdited = true
   bomStore.updateTree([...bomStore.bomTree])
 
-  // 清空临时行记录
   currentEditRow.value = null
   console.log("物料绑定并更新树成功，修改后的节点:", targetNode)
 }
 
-// 点击物料编码单元格打开弹窗
+// 单位下拉菜单相关
+const unitDropdownShow = ref(false)
+const currentUnitEditRow = ref(null)
+
+const unitMenuOptions = [
+  {
+    label: 'qty.数量类',
+    key: 'num',
+    children: [
+      { label: 'PCS(个)', key: 'pcs' },
+      { label: 'SET(套)', key: 'set' },
+      { label: 'Pair(对 / 双)', key: 'pair' },
+      { label: 'Assy(组件)', key: 'ass' },
+    ]
+  },
+  {
+    label: 'weight.重量类',
+    key: 'weight',
+    children: [
+      { label: 'KG(千克)', key: 'kg' },
+      { label: 'G(克)', key: 'g' },
+      { label: 'T(吨)', key: 't' },
+    ]
+  },
+  {
+    label: 'length.长度类',
+    key: 'length',
+    children: [
+      { label: 'M(米)', key: 'm' },
+      { label: 'CM(厘米)', key: 'cm' },
+      { label: 'MM(毫米)', key: 'mm' },
+    ]
+  },
+  {
+    label: 'area.面积类',
+    key: 'area',
+    children: [
+      { label: '㎡(平方米)', key: 'm2' },
+      { label: 'c㎡(平方厘米)', key: 'cm2' },
+    ]
+  }
+]
+
+const handleSelectUnit = (unitKey) => {
+  if (!currentUnitEditRow.value) return
+  currentUnitEditRow.value.unit = unitKey
+  markFieldEdited(currentUnitEditRow.value, 'unit')
+  bomStore.isEdited = true
+  bomStore.updateTree([...bomStore.bomTree])
+  unitDropdownShow.value = false
+  currentUnitEditRow.value = null
+}
+
 const openMaterialSelect = (row) => {
   currentEditRow.value = row
   setTimeout(() => {
@@ -143,38 +228,20 @@ const openMaterialSelect = (row) => {
   }, 30)
 }
 
-// 接收父组件传值
-const props = defineProps({
-  bomTree: Array,
-  bomVersion: Object,
-  product: Object,
-  materialList: {
-    type: Array,
-    default: () => []
-  }
-})
-
 const saveLoading = ref(false)
-const bomStore = useBomStore()
 const getRowKey = (row) => row.id
 
-// 页面初始化赋值
 bomStore.initData(props.bomTree, props.bomVersion.id, props.materialList)
 
-// 树形扁平化一维数组（虚拟滚动渲染）
 const flatList = computed(() => flattenTree(bomStore.bomTree))
-
-// 实时总成本汇总
 const totalCost = computed(() => calcTotalCost(bomStore.bomTree))
 
-// 树形展开配置
 const treeOptions = {
   childrenKey: 'children',
   indent: 26,
   expandAll: false
 }
 
-// 清空所有高亮标记
 const clearAllEditedMark = (treeArr) => {
   treeArr.forEach(node => {
     node.editedFields = null
@@ -184,11 +251,11 @@ const clearAllEditedMark = (treeArr) => {
   })
 }
 
-// 表格列定义
+// 表格列定义完全保留你的原版
 const tableColumns = [
-  { 
-    title: '序号', 
-    key: 'rowIndex', 
+  {
+    title: '序号',
+    key: 'rowIndex',
     width: 60,
     render: row => row.rowIndex
   },
@@ -244,7 +311,36 @@ const tableColumns = [
       ])
     }
   },
-  { title: '单位', key: 'unit', width: 80, render: row => row.material?.unit ?? '-' },
+  {
+    title: '单位',
+    key: 'unit',
+    width: 90,
+    render: (row) => {
+      const isEdit = isFieldEdited(row, 'unit')
+      return h(NDropdown, {
+        options: unitMenuOptions,
+        trigger: 'click',
+        placement: 'bottom-start',
+        onSelect: (key) => handleSelectUnit(key),
+      }, {
+        default: () => h('div', {
+          onClick: () => {
+            currentUnitEditRow.value = row
+          },
+          style: `
+          cursor:pointer;
+          min-height:32px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          border:1px solid #e5e7eb;
+          border-radius:4px;
+          ${isEdit ? 'background:#fef9c3;' : ''}
+        `
+        }, row.unit?.toUpperCase() ?? 'PCS')
+      })
+    }
+  },
   {
     title: '损耗率(%)',
     key: 'loss_rate',
@@ -277,49 +373,42 @@ const tableColumns = [
   }
 ]
 
-// 修改用量
 const updateQty = (row, val) => {
-  // 兜底：空值、小于最小值自动修正
   const safeVal = Number(val) || 0.000001
   row.qty = safeVal
   markFieldEdited(row, 'qty')
-
   bomStore.isEdited = true
-  // 直接传入原数组，无需每次浅拷贝
   bomStore.updateTree(bomStore.bomTree)
 }
 
-
-// 修改损耗率
 const updateLoss = (row, val) => {
   const safeVal = Number(val) || 0
   row.loss_rate = safeVal
   markFieldEdited(row, 'loss_rate')
-
   bomStore.isEdited = true
   bomStore.updateTree(bomStore.bomTree)
 }
 
-// 添加子物料节点
 const addChildRow = (parentRow) => {
   const newChild = {
     id: Date.now(),
     parent_id: parentRow.id,
     material_id: null,
     material: null,
-    material_code: '',  
-    material_name: '', 
+    material_code: '',
+    material_name: '',
     qty: 0,
     loss_rate: 0,
     subtotal: 0,
     depth: parentRow.depth + 1,
     children: [],
+    unit: 'pcs',
   }
   const addChildToNode = (treeArr, targetId, newItem) => {
     treeArr.forEach(node => {
-      if(node.id === targetId) {
+      if (node.id === targetId) {
         node.children.push(newItem)
-      } else if(node.children?.length) {
+      } else if (node.children?.length) {
         addChildToNode(node.children, targetId, newItem)
       }
     })
@@ -327,19 +416,18 @@ const addChildRow = (parentRow) => {
   const newTree = [...bomStore.bomTree]
   addChildToNode(newTree, parentRow.id, newChild)
   bomStore.isEdited = true
-  bomStore.updateTree(newTree)  
+  bomStore.updateTree(newTree)
 }
 
-// 删除当前行节点
 const deleteRow = (delRow) => {
   const removeNode = (treeArr, targetId) => {
-    for(let i=0; i<treeArr.length; i++){
-      if(treeArr[i].id === targetId) {
+    for (let i = 0; i < treeArr.length; i++) {
+      if (treeArr[i].id === targetId) {
         treeArr.splice(i, 1)
         return true
       }
-      if(treeArr[i].children?.length) {
-        if(removeNode(treeArr[i].children, targetId)) return true
+      if (treeArr[i].children?.length) {
+        if (removeNode(treeArr[i].children, targetId)) return true
       }
     }
     return false
@@ -350,18 +438,14 @@ const deleteRow = (delRow) => {
   bomStore.updateTree(newTree)
 }
 
-
-// 保存BOM到后端
+// 保存接口：删掉内部手动setShowFlag，交给上方watch统一管控
 const saveBom = () => {
   saveLoading.value = true
 
-  // 深度拷贝树形数据，清理前端渲染用的material对象，只保留数据库需要的字段
   const submitTree = JSON.parse(JSON.stringify(bomStore.bomTree))
   const cleanTreeForBackend = (nodes) => {
     nodes.forEach(node => {
-      // 删除前端页面渲染用的material快照，后端不需要
       delete node.material
-      // 递归清理子节点
       if (node.children && node.children.length) {
         cleanTreeForBackend(node.children)
       }
@@ -381,19 +465,19 @@ const saveBom = () => {
       const tree = [...bomStore.bomTree]
       clearAllEditedMark(tree)
       bomStore.updateTree(tree)
+      appStore.setShowFlag(true);
     }
   })
 }
 
-// 复制新版本
 const copyVersion = () => {
   router.post(route('bom.copy', bomStore.curVersionId))
 }
 
-// 导出Excel
 const handleExport = () => {
   exportBomExcel(bomStore.bomTree)
 }
+
 </script>
 
 <style scoped>

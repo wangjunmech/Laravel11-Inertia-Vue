@@ -22,29 +22,41 @@ class BomController extends Controller
             'materialList' => \App\Models\Material::all()
         ]);
     }
-
+    public function bom2(Request $request)
+    {
+          return Inertia::render('Bom/Bom2', []);
+    }
     // 保存编辑后的树形BOM
     public function save(Request $request, $versionId)
     {
         // 兜底：无数据默认空数组，杜绝null报错
         $treeData = $request->input('tree', []);
         $version = BomVersion::findOrFail($versionId);
-
+        
         // 清空原有明细
         BomItem::where('bom_version_id', $versionId)->delete();
+        // dd($versionId);//输出版本号
 
         // 递归入库树形数据
-        $this->saveTreeRecursive($treeData, $versionId, 0);
+        $this->saveTreeRecursive($treeData, $versionId, 0, $versionId);
 
+        // return back()->with('status', 'BOM保存成功');
         // 保存完成后测试打印数据库数据，验证是否存入
         // dd(BomItem::where('bom_version_id', $versionId)->get()->toArray());
-
-        return back()->with('success', 'BOM保存成功');
+        // return redirect()->route('到哪里')->with('status', 'BOM保存成功');
+        // return Inertia::render('Bom/Edit', compact('a'))->with('status', '保存成功');
+        // return redirect()->route('bom.edit', $versionId)->with('status', '保存成功');
+        // return redirect()->route('bom.edit', $versionId)->with('status', 'BOM保存成功');
+        // session()->flash('status', 'BOM保存成功test');
+        // dd(session()->all()); // 查看status是否存在
+        return redirect()
+            ->route('bom.edit', ['versionId' => $versionId])
+            ->with('status', 'BOM保存成功');
     }
 
     // 递归插入节点
     // 递归插入节点
-    protected function saveTreeRecursive($nodes, $vid, $pid)
+    protected function saveTreeRecursive($nodes, $vid, $pid, $versionId)
     {
         foreach ($nodes as $node) {
             // 确保 material_id 存在且不为空，避免保存 null
@@ -57,14 +69,19 @@ class BomController extends Controller
                 'qty' => $node['qty'] ?? 1,
                 'loss_rate' => $node['loss_rate'] ?? 0,
                 'sort' => $node['sort'] ?? 0,
-                'subtotal' => $node['subtotal'] ?? 0
+                'subtotal' => $node['subtotal'] ?? 0,
+                'unit' => $node['unit'] ?? 'pcs',
             ]);
 
             // 关键：如果该节点包含子节点，递归保存，并将当前刚创建的 $item->id 作为子节点的 parent_id 传下去
             if (!empty($node['children']) && is_array($node['children'])) {
-                $this->saveTreeRecursive($node['children'], $vid, $item->id);
+                $this->saveTreeRecursive($node['children'], $vid, $item->id, $versionId);
             }
         }
+        // return back();
+        //  return redirect()->route('dashboard')->with('status', 'Listing updated successfully.');
+        return back()->with('status', 'BOM saved successfully.');
+        
     }
 
     // 复制BOM新版本
