@@ -63,6 +63,7 @@
               @click.stop="handleDelete(index)"
             >删除</div>
           </div>
+          
         </div>
 
         <!-- 名称编辑输入框 -->
@@ -90,30 +91,34 @@
 
       <!-- BOM多字段单元格区域 -->
       <div class="flex">
-        <!-- 产品编号 下拉菜单 -->
-        <div class="relative inline-block mr-1 flex bg-green-400 m-2 px-2 items-center justify-center min-w-[110px] cursor-pointer">
-          <div
-            title="单击打开物料查询菜单"
-            @click.stop="toggleItemMenu(item.id)"
-          >
+        <!-- 产品编号 下拉菜单 -->        
+        <DropdownMenu
+          :isOpen="activeItemId === item.id"
+          @update:isOpen="(val) => val ? toggleItemMenu(item.id) : closeAllMenu()"
+          @click.stop="toggleItemMenu(item.id)"
+          placement="center"
+          :menu-list="[
+            { label: '物料详情', onClick: () => ItemDetail(item) },
+            { label: '供应商信息', onClick: () => SupplierInfo(item) },
+            { label: '模具信息', onClick: () => MoldInfo(item) },
+            { label: '使用场合', onClick: () => WhereToUse(item) },
+            { label: '工装夹具', onClick: () => JigTools(item) },
+            { label: '检测工具', onClick: () => InspectionTools(item) },
+            { label: '检验规范', onClick: () => SIP(item) },
+            { label: '操作指导', onClick: () => SOP(item) }
+          ]"
+        >
+            <div 
+                class="relative inline-block mr-1 flex m-2 px-2 items-center justify-center min-w-[110px] cursor-pointer transition-colors duration-200"
+                :class="[
+                  activeMenuNodeId === item.id 
+                    ? 'bg-red-500 text-white'  // 打开菜单：红色背景+白字
+                    : 'bg-green-400'           // 默认绿色
+                ]"
+              >
             {{ item.label }}
           </div>
-
-          <div
-            v-if="activeItemId === item.id"
-            class="absolute z-50 top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg py-1 min-w-[115px] max-w-[220px] overflow-hidden"
-            v-click-outside="closeItemMenu"
-          >
-            <div
-              class="px-3 py-1.5 text-sm cursor-pointer hover:bg-gray-100 transition-colors"
-              @click.stop="ItemDetail(item, index)"
-            >物料详情</div>
-            <div
-              class="px-3 py-1.5 text-sm cursor-pointer hover:bg-gray-100 transition-colors"
-              @click.stop="WhereToUse(item)"
-            >使用场合</div>
-          </div>
-        </div>
+        </DropdownMenu>
 
         <!-- 品名英文 -->
         <div class="flex bg-green-400 m-2 px-2 items-center justify-center min-w-[110px] cursor-pointer">
@@ -232,7 +237,10 @@
         <div class="flex bg-green-400 m-2 px-2 items-center justify-center min-w-[100px]">
           <span class="text-sm font-semibold">{{ item.subtotal.toFixed(2) }}</span>
         </div>
+
+
       </div>
+
 
       <!-- 右侧功能按钮区 -->
       <div class="flex items-center">
@@ -244,6 +252,8 @@
           <div v-else class="flex gap-2 bg-[#f4f4f5] px-1.5 py-0.5 rounded-full">
             <span>ID: {{ item.id }}</span>
             <span>Lv: {{ level }}</span>
+            <!-- 显示当前的父级元素id -->
+            <span>PID:  {{ item.parentId ?? '--' }}</span>
           </div>
         </div>
 
@@ -290,8 +300,8 @@
 </template>
 
 <script setup>
-import { ref, watch, provide, inject } from 'vue'
-
+import { ref, watch, onMounted, provide, inject } from 'vue'
+import DropdownMenu from '@/Components/DropdownMenu.vue'
 const props = defineProps({
   bomData: { type: Array, default: () => [] },
   level: { type: Number, default: 0 },
@@ -303,6 +313,11 @@ const props = defineProps({
 
 const emit = defineEmits(['update:bom-data'])
 
+onMounted(() => {
+  // 页面挂载完毕，树形数据已经拿到，初始化所有节点父ID
+  refreshAllParentId(props.bomData)
+})
+
 // 顶层变量声明
 let globalDraggingId, globalDropTargetId, globalDropPosition, executeGlobalMove, rootbomRef
 let globalMaxId, isVerifying, activeMenuId, closeAllMenu, toggleMenu, vClickOutside
@@ -313,6 +328,9 @@ const localShowInfo = ref(props.showIdLevel)
 watch(() => props.showIdLevel, (v) => { localShowInfo.value = v })
 const vFocus = { mounted: el => el.focus() }
 
+
+// // 【全局选中高亮节点ID】所有层级共用
+const activeMenuNodeId = ref(null)
 // 非根层级：全部注入接收
 if (props.level !== 0) {
   globalDraggingId = inject('globalDraggingId')
@@ -330,6 +348,7 @@ if (props.level !== 0) {
 
   // 物料下拉菜单全套注入接收
   activeItemId = inject('activeItemId')
+  // activeMenuNodeId = inject('activeMenuNodeId')
   toggleItemMenu = inject('toggleItemMenu')
   closeItemMenu = inject('closeItemMenu')
   ItemDetail = inject('ItemDetail')
@@ -348,20 +367,30 @@ if (props.level !== 0) {
   closeAllMenu = () => {
     activeMenuId.value = null
     activeItemId.value = null
+    activeMenuNodeId.value = null // 关闭菜单清空高亮
   }
   toggleMenu = (nodeId) => {
     activeItemId.value = null
     activeMenuId.value = activeMenuId.value === nodeId ? null : nodeId
+
   }
 
   // 产品编号物料下拉菜单状态
   activeItemId = ref(null)
   closeItemMenu = () => {
     activeItemId.value = null
+    activeMenuNodeId.value = null // 关闭菜单清空高亮
+    
   }
   toggleItemMenu = (nodeId) => {
-    activeMenuId.value = null
-    activeItemId.value = activeItemId.value === nodeId ? null : nodeId
+  // 点击同一个：关闭；点击其他：切换选中
+    if (activeMenuNodeId.value === nodeId) {
+      activeMenuNodeId.value = null
+      activeItemId.value = null
+    } else {
+      activeMenuNodeId.value = nodeId
+      activeItemId.value = nodeId
+    }
   }
   ItemDetail = () => {
     activeItemId.value = null
@@ -415,11 +444,16 @@ if (props.level !== 0) {
     }
     dfs(tree)
   }
-  refreshSerialNumber()
-  watch(() => props.bomData, () => {
-    rootbomRef = props.bomData
-    refreshSerialNumber()
-  }, { deep: true })
+
+  watch(
+  () => props.bomData,
+  (newTree) => {
+    rootbomRef = newTree // 同步更新全局树形引用
+    refreshSerialNumber(newTree)
+    refreshAllParentId(newTree)
+  },
+  { deep: true }
+)
 
   // 全部全局变量向下注入（子组件可拿到）
   provide('globalDraggingId', globalDraggingId)
@@ -441,11 +475,13 @@ if (props.level !== 0) {
   provide('closeItemMenu', closeItemMenu)
   provide('ItemDetail', ItemDetail)
   provide('WhereToUse', WhereToUse)
+  provide('activeMenuNodeId', activeMenuNodeId)
 }
 
 // 新建节点默认模板
-const getDefaultNode = (nodeId, nodeName) => ({
+const getDefaultNode = (nodeId, nodeName, parentPid = null) => ({
   id: nodeId,
+  parentId: parentPid,
   label: nodeName,
   tempLabel: nodeName,
   children: [],
@@ -454,7 +490,6 @@ const getDefaultNode = (nodeId, nodeName) => ({
   isNew: true,
   editField: null,
   sn: 0,
-  productSn: 'x000001',
   nameEn: 'labelcover',
   nameCn: '标签外壳',
   quantity: 1,
@@ -464,6 +499,22 @@ const getDefaultNode = (nodeId, nodeName) => ({
   subtotal: 0,
   bgactive: false
 })
+
+
+/**
+ * 递归遍历树形结构，给所有节点赋值 parentId
+ * @param nodes 当前遍历节点数组
+ * @param pid 父节点ID
+ */
+const refreshAllParentId = (nodes, pid = null) => {
+  nodes.forEach(node => {
+    node.parentId = pid;
+    // 递归遍历子节点，子节点父ID = 当前节点id
+    if (node.children && node.children.length > 0) {
+      refreshAllParentId(node.children, node.id);
+    }
+  });
+}
 
 // 打开单元格编辑
 const openEditField = (item, fieldKey) => {
@@ -530,12 +581,13 @@ const addSibling = (idx) => {
   globalMaxId.value += 1
   const newId = globalMaxId.value
   const newLabel = generateUniqueLabel(rootbomRef, props.bomData, props.namePrefix, props.digitLength, props.noRepeatName)
-  const newNode = getDefaultNode(newId, newLabel)
-
+// 同级节点父ID = 当前节点的parentId
+  const newNode = getDefaultNode(newId, newLabel, props.bomData[idx].parentId)
   const list = [...props.bomData]
   list.splice(idx + 1, 0, newNode)
   emit('update:bom-data', list)
   refreshSerialNumber()
+  refreshAllParentId(list) // 新增同级刷新PID
 }
 
 // 新增子节点
@@ -544,12 +596,13 @@ const addChild = (item) => {
   globalMaxId.value += 1
   const newId = globalMaxId.value
   const autoLabel = generateUniqueLabel(rootbomRef, props.bomData, props.namePrefix, props.digitLength, props.noRepeatName)
-  const newField = getDefaultNode(newId, autoLabel)
-
+// 子节点父ID = 父节点item.id
+  const newField = getDefaultNode(newId, autoLabel, item.id)
   item.children.push(newField)
   item.isOpen = true
   emit('update:bom-data', [...props.bomData])
   refreshSerialNumber()
+  refreshAllParentId(props.bomData) // 新增子节点刷新PID
 }
 
 // 删除节点
@@ -569,6 +622,7 @@ const deleteNode = (index) => {
     updatedData.splice(index, 1)
     emit('update:bom-data', updatedData)
     refreshSerialNumber()
+    refreshAllParentId(updatedData) // 删除后刷新所有父ID
   }
 }
 
@@ -725,6 +779,7 @@ function rootMoveNodeCenter(dragId, targetId, position) {
     }
   }
   refreshSerialNumber(fullbom)
+  refreshAllParentId(fullbom) // 拖拽结束刷新所有父ID
   emit('update:bom-data', fullbom)
 }
 </script>

@@ -1,7 +1,7 @@
 <template>
   <div class="bom-container">
     <div class="bom-header">
-      <h2 class="text-2xl font-bold">BOM创建器⏱</h2>
+      <h2 class="text-2xl font-bold">结构化BOM创建器⏱</h2>
 
       <!-- 复选框绑定修改：不再直接v-model，改用change事件手动控制勾选状态 -->
       <label class="config-toggle">
@@ -29,6 +29,9 @@
           class="ml-4 px-3 py-1 bg-blue-500 hover:bg-green-600 text-white rounded transition-colors"
         >
           Export📄
+        </button>
+        <button @click="handleExport" class="action-btn ml-4 px-3 py-1 bg-blue-500 hover:bg-green-600 rounded-lg">
+              📄 导出 Excel 文件
         </button>
       </div>
     </div>
@@ -74,9 +77,9 @@
           <div class="flex bg-green-400 m-2 px-5 rounded-lg">小计成本</div>
         </div>
 
-        <!-- 右侧操作区 -->
-        <div class="w-[190px] flex-shrink-0 h-full">
-          <div class="h-full flex items-center justify-center">右侧编辑操作区</div>
+        <!-- 右侧操作区,可修改[]中的宽度 -->
+        <div class="w-[230px] flex-shrink-0 h-full">
+          <div class="h-full flex items-center justify-center ">右侧编辑操作区</div>
         </div>
       </div>
     </div>
@@ -94,8 +97,137 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import BomNode from "./BomNode.vue";
+import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
+
+
+const activeMenuNodeId = ref(null)
+// provide('activeMenuNodeId', activeMenuNodeId)
+/**
+ * 导出BOM为Excel第1步：扁平化BOM树形数据
+ * 递归遍历BOM树，扁平化输出每行数据
+ * @param {Array} nodes 节点数组
+ * @param {Number} level 当前层级
+ * @param {Array} list 收集结果数组
+ */
+const flattenBomTree = (nodes, level = 0, list = []) => {
+  nodes.forEach(node => {
+    // 层级缩进空格：根节点无空格，子节点逐级加空格区分树形
+    const indentSpace = '　'.repeat(level);
+    list.push({
+      level: level,
+      id: node.id,
+      pid: node.parentId ?? '无',
+      sn: node.sn,
+      name: indentSpace + node.label, // 名称自带缩进体现树形结构
+      nameEn: node.nameEn,
+      nameCn: node.nameCn,
+      quantity: node.quantity,
+      unit: node.unit,
+      wasteRate: node.wasteRate + '%',
+      price: node.price,
+      subtotal: node.subtotal.toFixed(2)
+    })
+
+    // 递归遍历子节点，层级+1
+    if (node.children && node.children.length > 0) {
+      flattenBomTree(node.children, level + 1, list)
+    }
+  })
+  return list
+}
+
+/**
+* 导出BOM为Excel第2步：导出操作
+ */
+const handleExport = async () => {
+  try {
+    // 1. 将树形数据扁平化
+    const bomList = flattenBomTree(bomData.value)
+    if (bomList.length === 0) {
+      alert('暂无BOM数据可导出');
+      return;
+    }
+
+    // 2. 创建工作簿 & 工作表
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('BOM物料清单');
+
+    // 3. 定义表头列
+    worksheet.columns = [
+      { header: '层级', key: 'level', width: 8 },
+      { header: '节点ID', key: 'id', width: 10 },
+      { header: '父级PID', key: 'pid', width: 10 },
+      { header: '流水序号SN', key: 'sn', width: 12 },
+      { header: '产品编号(树形缩进)', key: 'name', width: 32 },
+      { header: '品名英文', key: 'nameEn', width: 22 },
+      { header: '品名中文', key: 'nameCn', width: 20 },
+      { header: '用量', key: 'quantity', width: 8 },
+      { header: '单位', key: 'unit', width: 8 },
+      { header: '损耗率', key: 'wasteRate', width: 10 },
+      { header: '采购单价', key: 'price', width: 12 },
+      { header: '小计成本', key: 'subtotal', width: 12 }
+    ];
+
+    // 4. 设置表头样式：加粗、居中、背景浅蓝
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'E6F7FF' }
+    };
+
+    // 5. 填充所有BOM行数据
+    worksheet.addRows(bomList);
+        // 数字列右对齐设置，可选
+            worksheet.getColumn('quantity').alignment = { horizontal: 'right' }
+            worksheet.getColumn('price').alignment = { horizontal: 'right' }
+            worksheet.getColumn('subtotal').alignment = { horizontal: 'right' }
+            worksheet.getColumn('level').alignment = { horizontal: 'center' }
+            worksheet.getColumn('id').alignment = { horizontal: 'center' }
+            worksheet.getColumn('pid').alignment = { horizontal: 'center' }
+            worksheet.getColumn('sn').alignment = { horizontal: 'center' }
+            
+
+    // 奇数行隔行变色，可选
+          worksheet.eachRow((row, rowNum) => {
+            row.alignment = { vertical: 'middle' };
+            // 跳过表头，数据行隔行底色
+            if (rowNum > 1 && rowNum % 2 === 0) {
+              row.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'aef777' }
+              }
+            }
+          });
+
+
+    // 6. 全局单元格垂直居中
+    worksheet.eachRow((row) => {
+      row.alignment = { vertical: 'middle' };
+    });
+
+    // 7. 生成二进制文件并下载
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    saveAs(blob, `结构化BOM清单_${new Date().getTime()}.xlsx`);
+
+  } catch (err) {
+    console.error('Excel导出失败：', err);
+    alert('导出Excel失败，请查看控制台报错');
+  }
+};
+
+
+
 
 // 1. 新增：前缀、数字位数响应式变量（必须声明）
 const namePrefix = ref('code')   // 默认前缀
@@ -205,6 +337,7 @@ const handleToggleNoRepeat = (e) => {
   border-bottom: 1px solid #f0f0f0;
   padding-bottom: 10px;
   margin-bottom: 15px;
+  
 }
 .config-toggle {
   display: flex;
