@@ -1,7 +1,18 @@
 <template>
+  <div>搜索，差别筛选器，保存，导入</div>
   <div class="bom-container">
     <div class="bom-header">
       <h2 class="text-2xl font-bold">结构化BOM创建器⏱</h2>
+      <!-- 搜索输入框 -->
+        <input
+          title="搜索BOM"
+          v-model="searchKeyword"
+          @dblclick="searchKeyword = ''"
+          @keyup.enter.prevent="searchKeyword = ''"
+          @keyup.esc.prevent="searchKeyword = ''"
+          placeholder="🔍搜索编号，名称"
+          class="rounded-lg px-1 py-2 max-w-[220px] ml-auto border border-gray-300"
+        >
 
       <!-- 复选框绑定修改：不再直接v-model，改用change事件手动控制勾选状态 -->
       <label class="config-toggle">
@@ -86,22 +97,69 @@
 
     <!-- 向子组件传递两个参数 短横线写法完全规范 -->
     <BomNode 
-      :bom-data="bomData"
+      :bom-data="currentBomData"
       @update:bom-data="updatebomData"
       :show-id-level="showIdLevel"
       :no-repeat-name="noRepeatName"
       :name-prefix="namePrefix"
       :digit-length="digitLength"
+      :search-keyword="searchKeyword"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount,computed } from 'vue';
 import BomNode from "./BomNode.vue";
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+
+
+// 目前过滤条件只匹配 nameEn，需求一般是：产品编号 (label)、品名英文、品名中文任意匹配；
+// 搜索后树形结构容易断裂，需要保留完整父级链路（不能只过滤零散节点，否则树形缩进直接错乱）；
+// 没有清空搜索时恢复原始数据；
+// 输入框没有绑定回车触发、实时防抖（可选优化）。
+const searchKeyword = ref('')
+/**
+ * 树形搜索过滤，保留完整父链
+ * @param {Array} tree 原始bom树
+ * @param {String} keyword 搜索关键词
+ * @returns 过滤后的树形数组
+ */
+const filterBomTree = (tree, keyword) => {
+  if (!keyword.trim()) return [...tree]
+  const kw = keyword.toLowerCase().trim()
+  const result = []
+  for (const node of tree) {
+    const isMatch =
+      node.label?.toLowerCase().includes(kw) ||
+      node.nameEn?.toLowerCase().includes(kw) ||
+      node.nameCn?.toLowerCase().includes(kw)
+
+    const childMatched = filterBomTree(node.children || [], keyword)
+
+    if (isMatch || childMatched.length > 0) {
+      const newNode = {...node}
+      newNode.children = childMatched
+      newNode.isOpen = true
+      // ✅新增标记：只有本身匹配关键词才打上true
+      newNode._isKeywordMatch = isMatch
+      result.push(newNode)
+    }
+  }
+  return result
+}
+
+// 计算属性：对外提供过滤后的BOM数据
+const currentBomData = computed(() => {
+  // const tree = filterBomTree(bomData.value, searchKeyword.value)
+  // // 有搜索词，移除root节点
+  // if(searchKeyword.value.trim()){
+  //   return tree.filter(n => n.id !== 0)
+  // }  
+  return filterBomTree(bomData.value, searchKeyword.value)
+})
 
 
 const activeMenuNodeId = ref(null)
@@ -244,7 +302,7 @@ const checkDigitRange = () => {
 
 // 树节点基础数据
 const bomData = ref(
-[{"id":0,"label":"root 根节点","children":[{"id":4,"label":"code0004","children":[{"id":8,"label":"code0008","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover000001","nameCn":"扫地机支架","quantity":6,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":2,"editField":null}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover test","nameCn":"扫地机外下壳","quantity":1,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":1,"editField":null},{"id":1,"label":"code0001","children":[{"id":6,"label":"code0006","children":[{"id":7,"label":"code0007","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover top","nameCn":"扫地机外装饰条","quantity":4,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":5,"editField":null}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover front","nameCn":"扫地机外电池盖","quantity":3,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":4,"editField":null}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover","nameCn":"扫地机电池盒上","quantity":2,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":3,"editField":null},{"id":3,"label":"code0003","children":[],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover","nameCn":"电源线","quantity":5,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":6,"editField":null},{"id":2,"label":"code0002","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover","nameCn":"纸箱","quantity":7,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":7,"editField":null},{"id":5,"label":"code0005","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover","nameCn":"彩盒","quantity":8,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":8,"editField":null},{"id":9,"label":"code0009","children":[],"isOpen":false,"isEdit":false,"isNew":false,"editField":null,"sn":9,"productSn":"x000001","nameEn":"labelcover","nameCn":"标签外箱","quantity":1,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false}],"productSn":"x000001","nameEn":"labelcover","nameCn":"扫地机外上壳","quantity":1,"unit":"pcs","wasteRate":0.2,"price":0,"subtotal":0,"isOpen":true,"isEdit":false,"isNew":false,"bgactive":false,"sn":0,"editField":null}])
+[{"id":0,"label":"root 根节点","children":[{"id":4,"label":"code0004","children":[{"id":8,"label":"code0008","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover000001","nameCn":"扫地机支架","quantity":6,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":2,"editField":null}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labeltr test","nameCn":"扫地机外下壳","quantity":1,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":1,"editField":null},{"id":1,"label":"code0001","children":[{"id":6,"label":"code0006","children":[{"id":7,"label":"code0007","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelbase top","nameCn":"扫地机外装饰条","quantity":4,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":5,"editField":null}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover front","nameCn":"扫地机外电池盖","quantity":3,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":4,"editField":null}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"topcover","nameCn":"扫地机电池盒上","quantity":2,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":3,"editField":null},{"id":3,"label":"code0003","children":[],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"fan sheld","nameCn":"电源线","quantity":5,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":6,"editField":null},{"id":2,"label":"code0002","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover","nameCn":"纸箱","quantity":7,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":7,"editField":null},{"id":5,"label":"code0005","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover","nameCn":"彩盒","quantity":8,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":8,"editField":null},{"id":9,"label":"code0009","children":[],"isOpen":false,"isEdit":false,"isNew":false,"editField":null,"sn":9,"productSn":"x000001","nameEn":"tablecover","nameCn":"标签外箱","quantity":1,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false}],"productSn":"x000001","nameEn":"hot tip box","nameCn":"扫地机外上壳","quantity":1,"unit":"pcs","wasteRate":0.2,"price":0,"subtotal":0,"isOpen":true,"isEdit":false,"isNew":false,"bgactive":false,"sn":0,"editField":null}])
 
 // 接收子组件传递回来的新数据
 const updatebomData = (newData) => {
