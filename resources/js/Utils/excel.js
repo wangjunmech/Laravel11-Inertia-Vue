@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx'
 import { flattenTree } from './bomCalc'
 
 // 导出BOM为Excel
+//  * 创建BOM使用，http://localhost:8000/bom/edit/5
 export function exportBomExcel(treeData, fileName = 'BOM物料清单.xlsx') {
     const flatList = flattenTree(cloneDeep(treeData))
     const exportArr = flatList.map(item => {

@@ -331,11 +331,13 @@ const tableColumns = [
           cursor:pointer;
           min-height:32px;
           display:flex;
+          background:#ffff00;
+          padding:0 6px;
           align-items:center;
           justify-content:center;
           border:1px solid #e5e7eb;
           border-radius:4px;
-          ${isEdit ? 'background:#fef9c3;' : ''}
+          ${isEdit ? 'background:#ffcc00;' : ''}
         `
         }, row.unit?.toUpperCase() ?? 'PCS')
       })
@@ -348,14 +350,14 @@ const tableColumns = [
     render: (row) => {
       const isEdit = isFieldEdited(row, 'loss_rate')
       return h('div', {
-        style: `display: flex; align-items: center; padding: 2px 4px; border-radius: 4px; ${isEdit ? 'background: #fef9c3;' : ''}`
+        style: `display: flex; align-items: center; padding: 2px 4px; border-radius: 4px; ${isEdit ? 'background: #ffcc00;' : ''}`
       }, [
         h(NInputNumber, {
           value: row.loss_rate,
           min: 0,
           max: 100,
           onUpdateValue: debounce((val) => updateLoss(row, val), 300),
-          style: `width: 100%; ${isEdit ? '--n-color: #fef9c3;' : ''}`
+          style: `width: 100%; ${isEdit ? '--n-color: #fff9c3;' : ''}`
         })
       ])
     }

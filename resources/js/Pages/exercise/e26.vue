@@ -1,7 +1,6 @@
 <template>
-    <div>
-        
-        <div></div>
+    <div>        
+        <div>产品工艺流程表</div>
     </div>
 </template>
 

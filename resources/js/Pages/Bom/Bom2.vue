@@ -1,5 +1,5 @@
 <template>
-  <div>搜索，差别筛选器，保存，导入</div>
+  <div>类别筛选器，单位选择，保存，导入</div>
   <div class="bom-container">
     <div class="bom-header">
       <h2 class="text-2xl font-bold">结构化BOM创建器⏱</h2>
@@ -46,6 +46,14 @@
         </button>
       </div>
     </div>
+    <!-- BOM信息汇总区 -->
+     <div class="flex bg-gray-400 rounded pl-2">
+        <div>BOM项目条数:</div>
+        <div>BOM总计成本:</div>
+        <div>BOM创建时间</div>
+        <div>BOM版本号</div>
+
+     </div>
 
     <!-- 表头字段显示 -->
     <div>
@@ -77,23 +85,25 @@
 
         <!-- 中间8列表头 -->
         <div class="flex">
-          <div class="flex bg-blue-400 m-2 px-5 rounded-lg">序号</div>
-          <div class="flex bg-green-400 m-2 px-5 rounded-lg">产品编号</div>
-          <div class="flex bg-green-400 m-2 px-5 rounded-lg">品名英</div>
-          <div class="flex bg-green-400 m-2 px-5 rounded-lg">品名中</div>
-          <div class="flex bg-red-200 m-2 px-5 rounded-lg">用量</div>
-          <div class="flex bg-red-400 m-2 px-5 rounded-lg">单位</div>
-          <div class="flex bg-green-400 m-2 px-5 rounded-lg">损耗率</div>
-          <div class="flex bg-green-400 m-2 px-5 rounded-lg">采购单价</div>
-          <div class="flex bg-green-400 m-2 px-5 rounded-lg">小计成本</div>
+          <div class=" bg-blue-400 m-1 px-4 rounded-lg">序号</div>
+          <div class=" bg-yellow-400 m-1 px-4 rounded-lg">类别</div>
+          <div class="flex bg-green-100 m-1 px-4 rounded-lg w-[220px] justify-center border">产品编号</div>
+          <div class="flex bg-green-400 m-1 px-4 rounded-lg w-[110px]">品名英</div>
+          <div class="flex bg-green-400 m-1 px-4 rounded-lg w-[110px]">品名中</div>
+          <div class="flex bg-red-200 m-1 px-4 rounded-lg">用量</div>
+          <div class="flex bg-red-400 m-1 px-4 rounded-lg">单位</div>
+          <div class="flex bg-green-400 m-1 px-4 rounded-lg">损耗率</div>
+          <div class="flex bg-green-400 m-1 px-4 rounded-lg">采购单价</div>
+          <div class="flex bg-gray-200 m-1 px-4 rounded-lg">小计成本</div>
         </div>
 
         <!-- 右侧操作区,可修改[]中的宽度 -->
-        <div class="w-[230px] flex-shrink-0 h-full">
+        <div class="w-[140px] flex-shrink-0 h-full">
           <div class="h-full flex items-center justify-center ">右侧编辑操作区</div>
         </div>
       </div>
     </div>
+    <hr class="h-2 border-2 bg-gray-200">
 
     <!-- 向子组件传递两个参数 短横线写法完全规范 -->
     <BomNode 
@@ -105,11 +115,21 @@
       :digit-length="digitLength"
       :search-keyword="searchKeyword"
     />
+        <!-- 底部总成本汇总 -->
+    <div class="mt-4 bg-slate-200 p-4 rounded shadow flex justify-end">
+      <span>BOM项目总条数：{{bomItemCount-1}}
+      </span>
+      <span class="w-6"></span>
+
+      <span>BOM物料总成本合计：
+        <b class="text-red-600  ml-2">{{ BomTotalCost }} 元</b>
+      </span>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount,computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount,computed, h  } from 'vue';
 import BomNode from "./BomNode.vue";
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
@@ -121,6 +141,8 @@ import { saveAs } from 'file-saver';
 // 没有清空搜索时恢复原始数据；
 // 输入框没有绑定回车触发、实时防抖（可选优化）。
 const searchKeyword = ref('')
+
+
 /**
  * 树形搜索过滤，保留完整父链
  * @param {Array} tree 原始bom树
@@ -180,6 +202,7 @@ const flattenBomTree = (nodes, level = 0, list = []) => {
       id: node.id,
       pid: node.parentId ?? '无',
       sn: node.sn,
+      cateName: node.cateName,
       name: indentSpace + node.label, // 名称自带缩进体现树形结构
       nameEn: node.nameEn,
       nameCn: node.nameCn,
@@ -220,6 +243,7 @@ const handleExport = async () => {
       { header: '节点ID', key: 'id', width: 10 },
       { header: '父级PID', key: 'pid', width: 10 },
       { header: '流水序号SN', key: 'sn', width: 12 },
+      { header: '类别', key: 'cateName', width: 22 },
       { header: '产品编号(树形缩进)', key: 'name', width: 32 },
       { header: '品名英文', key: 'nameEn', width: 22 },
       { header: '品名中文', key: 'nameCn', width: 20 },
@@ -291,7 +315,7 @@ const handleExport = async () => {
 const namePrefix = ref('code')   // 默认前缀
 const digitLength = ref(4)       // 默认4位数字
 
-const showIdLevel = ref(true)
+const showIdLevel = ref(false)
 const noRepeatName = ref(true) // 默认开启全局不重复
 
 // 数字框失焦校验：强制锁定1~8
@@ -302,7 +326,7 @@ const checkDigitRange = () => {
 
 // 树节点基础数据
 const bomData = ref(
-[{"id":0,"label":"root 根节点","children":[{"id":4,"label":"code0004","children":[{"id":8,"label":"code0008","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover000001","nameCn":"扫地机支架","quantity":6,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":2,"editField":null}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labeltr test","nameCn":"扫地机外下壳","quantity":1,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":1,"editField":null},{"id":1,"label":"code0001","children":[{"id":6,"label":"code0006","children":[{"id":7,"label":"code0007","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelbase top","nameCn":"扫地机外装饰条","quantity":4,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":5,"editField":null}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover front","nameCn":"扫地机外电池盖","quantity":3,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":4,"editField":null}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"topcover","nameCn":"扫地机电池盒上","quantity":2,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":3,"editField":null},{"id":3,"label":"code0003","children":[],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"fan sheld","nameCn":"电源线","quantity":5,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":6,"editField":null},{"id":2,"label":"code0002","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover","nameCn":"纸箱","quantity":7,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":7,"editField":null},{"id":5,"label":"code0005","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover","nameCn":"彩盒","quantity":8,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false,"sn":8,"editField":null},{"id":9,"label":"code0009","children":[],"isOpen":false,"isEdit":false,"isNew":false,"editField":null,"sn":9,"productSn":"x000001","nameEn":"tablecover","nameCn":"标签外箱","quantity":1,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"bgactive":false}],"productSn":"x000001","nameEn":"hot tip box","nameCn":"扫地机外上壳","quantity":1,"unit":"pcs","wasteRate":0.2,"price":0,"subtotal":0,"isOpen":true,"isEdit":false,"isNew":false,"bgactive":false,"sn":0,"editField":null}])
+[{"id":0,"label":"整机总成编号","children":[{"id":4,"label":"code0004","children":[{"id":8,"label":"code0008","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover000001","nameCn":"扫地机支架","quantity":6,"unit":"g","wasteRate":1,"price":8,"subtotal":48.48,"bgactive":false,"sn":2,"editField":null,"parentId":4,"unitPopupOpen":false}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labeltr test","nameCn":"扫地机外下壳","quantity":1,"unit":"pcs","wasteRate":1,"price":12,"subtotal":12.12,"bgactive":false,"sn":1,"editField":null,"parentId":0,"unitPopupOpen":false},{"id":1,"label":"code0001","children":[],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"topcover","nameCn":"扫地机电池盒上","quantity":2,"unit":"ass","wasteRate":1,"price":5,"subtotal":10.1,"bgactive":false,"sn":3,"editField":null,"parentId":0,"unitPopupOpen":false}],"productSn":"x000001","nameEn":"Full Machine","nameCn":"整机总成","quantity":1,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"isOpen":true,"isEdit":false,"isNew":false,"bgactive":false,"sn":0,"editField":null,"parentId":null,"unitPopupOpen":false}])
 
 // 接收子组件传递回来的新数据
 const updatebomData = (newData) => {
@@ -374,11 +398,43 @@ const handleToggleNoRepeat = (e) => {
     noRepeatName.value = false
   }
 }
+// BOM项目条数
+const bomItemCount = computed(()=>{
+  let count = 0
+  function loop(list){
+    list.forEach(item=>{
+      count++
+      if(item.children && item.children.length > 0){
+        loop(item.children)
+      }
+    })
+  }
+  loop(bomData.value)
+  return count
+})
+// BOM总成本，一次性递归遍历全部节点累加小计成本
+const BomTotalCost = computed(()=>{
+  let sum = 0
+  // 递归遍历函数
+  function loop(list){
+    list.forEach(item=>{
+      sum += Number(item.subtotal ?? 0)
+      if(item.children && item.children.length > 0){
+        loop(item.children)
+      }
+    })
+  }
+  loop(bomData.value)
+  // sum = sum.toFixed(2)//四舍五入保留两位小数,文本类型
+  sum = Number(sum.toFixed(2))//数字类型
+  return sum
+})
+
 </script>
 
 <style scoped>
 .bom-container {
-  width:90%;
+  width:98%;
   margin: 30px auto;  
   border: 1px solid #e0e0e0;
   border-radius: 8px;

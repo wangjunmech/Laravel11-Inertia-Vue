@@ -1,6 +1,7 @@
 import { cloneDeep } from 'lodash'
 
 /**
+ * 创建BOM使用，http://localhost:8000/bom/edit/5
  * 1. 嵌套树形 扁平化一维数组（虚拟滚动必备）
  * @param {Array} tree 原始嵌套树形
  * @param {Number} depth 层级深度

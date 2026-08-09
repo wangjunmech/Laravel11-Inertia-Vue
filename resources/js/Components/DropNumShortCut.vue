@@ -1,11 +1,11 @@
-<!-- DropdownMenu.vue -->
 <template>
+    <!-- 弹出菜单组件：按数字键快捷键执行相应菜单 -->
   <div class="dropdown-wrap relative inline-block">
     <slot @click="handleTriggerClick"></slot>
     <div
       v-if="isOpen"
       ref="panelRef"
-      class="dropdown-panel absolute z-50 bg-white border border-gray-500 rounded-lg shadow-lg py-1 min-w-[130px] max-w-[220px] overflow-hidden"
+      class="dropdown-panel absolute z-50 bg-white border border-gray-500 rounded-lg shadow-lg py-1 min-w-[180px] max-w-[220px] overflow-hidden"
       :class="placementClass"
     >
       <div
@@ -13,7 +13,7 @@
         :key="idx"
         class="menu-item px-3 py-1.5 text-sm cursor-pointer transition-colors"
         :class="[item.danger ? 'text-red-500' : 'text-gray-700']"
-        @click="handleMenuItemClick(item)"
+        @click="handleMenuItemClick(item,idx)"
       >
         <span class="mr-1">{{ idx + 1 }}.</span>
         {{ item.label }}
@@ -24,6 +24,9 @@
 
 <script setup>
 import { ref, watch, computed, onUnmounted } from 'vue'
+
+// 先声明emit，所有函数才可以调用
+const emit = defineEmits(['update:isOpen', 'menuClick'])
 
 const props = defineProps({
   isOpen: {
@@ -38,9 +41,11 @@ const props = defineProps({
   placement: {
     type: String,
     default: 'left'
-  }
+  },
+  uniqueId:{
+    type:Number
+  },
 })
-const emit = defineEmits(['update:isOpen'])
 const panelRef = ref(null)
 
 const parsePlacement = (str) => {
@@ -77,19 +82,59 @@ const placementClass = computed(() => {
 })
 
 const handleTriggerClick = () => emit('update:isOpen', !props.isOpen)
-const handleMenuItemClick = (menuItem) => {
+
+const handleMenuItemClick = (menuItem,idx) => {
+  console.log('菜单面板' +props.uniqueId+'**********下面的菜单' + idx+'被点击：');
+  console.log(menuItem)
   menuItem.onClick?.()
+  emit('menuClick',{
+    type:props.uniqueId,
+    list:props.menuList
+  })
   emit('update:isOpen', false)
 }
+
+// 点击外部关闭菜单
 const outsideClickHandler = (e) => {
   if (!panelRef.value || panelRef.value.contains(e.target)) return
   emit('update:isOpen', false)
 }
-watch(() => props.isOpen, (val) => {
-  val ? document.addEventListener('click', outsideClickHandler) : document.removeEventListener('click', outsideClickHandler)
+
+// 键盘快捷键
+const keyHandler = (e) => {
+  if (!props.isOpen) return
+  console.log('按下按键', e.key, e.code)
+  const num = Number(e.key)
+  // 校验数字范围
+  if (Number.isInteger(num) && num >= 1 && num <= props.menuList.length) {
+    e.preventDefault()
+    const opt = props.menuList[num - 1]
+    opt?.onClick?.()
+    emit('update:isOpen', false)
+  }
+}
+
+// 弹窗打开：绑定键盘、外部点击监听
+watch(
+  () => props.isOpen,
+  (open) => {
+    if (open) {
+      window.addEventListener('keydown', keyHandler)
+      window.addEventListener('click', outsideClickHandler)
+    } else {
+      window.removeEventListener('keydown', keyHandler)
+      window.removeEventListener('click', outsideClickHandler)
+    }
+  }
+)
+
+// 组件销毁强制清除全部监听，防止内存泄漏、快捷键残留冲突
+onUnmounted(() => {
+  window.removeEventListener('keydown', keyHandler)
+  window.removeEventListener('click', outsideClickHandler)
 })
-onUnmounted(() => document.removeEventListener('click', outsideClickHandler))
 </script>
+
 <style scoped>
 .dropdown-wrap {position: relative;}
 .menu-item:hover {background-color: #7db1ff;}

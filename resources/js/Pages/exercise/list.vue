@@ -175,6 +175,11 @@ const goTo = (path) => {
           26--产品工艺流程表
         </button>
       </div>
+      <div class="item">
+        <button @click="goTo('e26')">
+          27--input输入过滤
+        </button>
+      </div>
 
     
     </div>
