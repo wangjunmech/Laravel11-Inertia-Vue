@@ -104,9 +104,9 @@
 
 
       <!-- BOM多字段单元格区域 -->
-      <div class="ml-auto flex gap-1 flex-1 justify-end">
+      <div class="ml-auto flex gap-1 items-center flex-1 justify-end">
               
-      <div class="flex rounded-lg bg-blue-400 m-1 px-5 justify-center min-w-[50px]">
+      <div class="flex rounded-lg bg-blue-400 h-6 m-1 px-5 justify-center items-center min-w-[50px]">
         {{ item.sn }}
       </div>
 
@@ -212,9 +212,9 @@
         </div>
 
         <!-- 品名中文 -->
-        <div class="flex bg-green-300 m-1 px-2 rounded-sm  justify-center min-w-[110px] cursor-pointer">
+        <div class="flex bg-green-300 m-1 px-2 rounded-sm justify-center min-w-[110px] cursor-pointer">
           <input
-            v-if="item.editField === 'nameCn'"
+            v-if="item.editField === 'nameCn'&& !item.lockField"
             v-model="item.nameCn"
             @blur="saveField(item)"
             @keyup.enter="saveField(item)"
@@ -226,7 +226,7 @@
           <div 
             v-else 
             class="w-full min-w-0 cursor-pointer text-center"
-            @click="openEditField(item, 'nameCn')"
+            @click="!item.lockField && openEditField(item, 'nameCn')"
           >
             <span 
               class="block truncate"
@@ -258,13 +258,15 @@
         </div>
 
         
-        <div class="flex bg-red-400 m-1 px-2 rounded-sm  justify-center min-w-[60px]">
+        <div class="flex bg-red-400 m-1 px-2 rounded-sm items-center justify-center min-w-[60px]"
+        @click.stop="!item.lockField && (item.unitPopupOpen = true)">
           <!-- 单位选择************选择组件调用 -->
           <DropdownSubMenu
             v-model="item.unitPopupOpen"
             :unit-group-list="unitGroupList"
             placement="left"
-            @select="(key)=>{
+            @select="(key) => {
+              if(item.lockField) return
               item.unit = key
                 if(bomStore){
                   bomStore.isEdited = true
@@ -281,7 +283,7 @@
         <!-- 损耗率 -->
         <div class="flex bg-green-300 m-1 px-2 rounded-sm  justify-center min-w-[60px]">
           <input
-            v-if="item.editField === 'wasteRate'"
+            v-if="item.editField === 'wasteRate' && !item.lockField"
             v-model.number="item.wasteRate"
             type="number" min="0" max="100" step="0.1"
             @blur="saveField(item)"
@@ -291,15 +293,18 @@
             @dblclick="handleDblClickSelect"
 
           />
-          <span v-else @click="openEditField(item, 'wasteRate')" class="cursor-pointer text-sm min-w-[60px]">
+          <span v-else 
+          @click="!item.lockField && openEditField(item, 'wasteRate')"
+           class="flex items-center cursor-pointer h-6 text-sm min-w-[60px]">
             {{ item.wasteRate }}%
           </span>
         </div>
 
         <!-- 采购单价 -->
         <div class="flex bg-green-400 m-1 px-2 rounded-sm  justify-center min-w-[80px]">
+          <!-- 如果前面有相同编号的项目,这个重复项的单价要锁定，不能被修改,只能修改最前面一条记录,修改完以后，重新回到这条记录的前面，点击编号，重新更新一遍 -->
           <input
-            v-if="item.editField === 'price'"
+            v-if="item.editField === 'price' && !item.lockField"
             v-model.number="item.price"
             type="number" min="0" step="0.01"
             @blur="saveField(item)"
@@ -308,15 +313,17 @@
             v-focus
             @dblclick="handleDblClickSelect"
 
-          />
-          <span v-else @click="openEditField(item, 'price')" class="cursor-pointer text-sm min-w-[60px]">
+            />
+          <span v-else 
+          @click="!item.lockField && openEditField(item, 'price')" 
+          class="flex items-center cursor-pointer h-6 text-sm min-w-[60px]">
             {{ item.price }}
           </span>
         </div>
 
         <!-- 小计成本 只读 -->
         <div class="flex bg-gray-200 m-1 px-2  min-w-[90px] rounded">
-          <span class="text-sm font-semibold">{{ item.subtotal.toFixed(2) }}</span>
+          <span class="flex text-sm h-6 items-center font-semibold">{{ item.subtotal.toFixed(2) }}</span>
         </div>
       </div>
 
@@ -327,7 +334,7 @@
           @click="localShowInfo = !localShowInfo"
         >
           <span v-if="!localShowInfo" class="opacity-50 hover:opacity-100">👁</span>
-          <div v-else class="flex gap-2 bg-[#f4f4f5] px-1.5 py-0.5 rounded-full">
+          <div v-else class="flex gap-2 bg-[#f4f4f5] px-1.5 h py-0.5 rounded-full">
             <span>ID: {{ item.id }}</span>
             <span>Lv: {{ level }}</span>
             <!-- 显示当前的父级元素id -->
@@ -387,7 +394,7 @@
 
 <script setup>
 // 1. 模块导入
-import { ref, watch, onMounted, onUnmounted, provide, inject, computed,nextTick, h } from 'vue'
+import { ref,toRaw, watch, onMounted, onUnmounted, provide, inject, computed,nextTick, h } from 'vue'
 import DropdownMenu from '@/Components/DropdownMenu.vue'
 import DropdownSubMenu from '@/Components/DropdownSubMenu.vue'
 import { useBomStore } from '@/Stores/bomStore.js'
@@ -410,7 +417,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:bom-data'])
-
+const fullBomTree = ref(props.bomData)
 // 3. 基础局部响应式变量 + 自定义指令
 const localShowInfo = ref(props.showIdLevel)
 watch(() => props.showIdLevel, (v) => { localShowInfo.value = v })
@@ -489,9 +496,13 @@ onUnmounted(() => {
     document.removeEventListener('click', closeAllMenu)
   }
 })
+
+const getRawTree = inject('getRawTree')
+
+
+// const rawTree = getRawTree()
 // 6. 根层级/子层级区分：注入全局状态 或 初始化全局状态并向下provide
 if (props.level !== 0) {
-  // 非根节点：全部从顶层注入全局状态与方法
 
   // 类别处理injection
   activeCateId = inject('activeCateId')
@@ -663,6 +674,7 @@ const addNewCate = (rowItem)=>{
     () => props.bomData,
     (newTree) => {
       rootbomRef = newTree // 同步更新全局树形引用
+      fullBomTree.value = JSON.parse(JSON.stringify(newTree))
       refreshSerialNumber(newTree)
       refreshAllParentId(newTree)
 
@@ -676,6 +688,9 @@ const addNewCate = (rowItem)=>{
   }, { immediate: true })
 
   // 全局所有状态向下注入子孙组件
+  provide('fullBomTree', fullBomTree)
+  provide('getRawTree', () => toRaw(JSON.parse(JSON.stringify(rootbomRef))))
+  
   provide('globalDraggingId', globalDraggingId)
   provide('globalDropTargetId', globalDropTargetId)
   provide('globalDropPosition', globalDropPosition)
@@ -732,7 +747,9 @@ const getDefaultNode = (nodeId, nodeName, parentPid = null) => ({
   wasteRate: 0,
   price: 0,
   subtotal: 0,
-  bgactive: false
+  bgactive: false,
+  isMaster: true,
+  lockField: false // 新增：字段锁定开关
 })
 
 /**
@@ -917,6 +934,21 @@ const saveLabel = (item, siblingsArr, event) => {
   item.isEdit = false
   item.isNew = false
   delete item.tempLabel
+
+  onCodeChange(item, fullBomTree.value)
+  fullBomTree.value = JSON.parse(JSON.stringify(props.bomData))
+
+// 强制触发仓库更新、视图刷新
+  // bomStore.isEdited = true
+  // bomStore.updateTree([...bomStore.bomTree])
+
+  //保存编号之后校验是否还存在重复编号
+const rawTree = getRawTree()
+const repeatRow = findOtherSameCode(rawTree,item.label,item.id)
+if(!repeatRow){
+  item.lockField = false
+}
+
   emit('update:bom-data', [...props.bomData])
   refreshSerialNumber()
 }
@@ -1039,10 +1071,9 @@ const checkLabelExistsGlobal = (label, nodes, currentId) => {
 
 const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-function generateUniqueLabel(tree, siblings, prefix, len, isGlobal) {
+function generateUniqueLabel(tree, siblings, prefix, len, isGlobal=1) {
   let maxNum = 0
   const reg = new RegExp(`^${escapeRegExp(prefix)}(\\d+)$`)
-
   if (isGlobal) {
     const traverse = (list) => {
       list.forEach(node => {
@@ -1113,6 +1144,62 @@ const isDescendantGlobal = (parent, childNode) => {
   }
   return false
 }
+
+/// 递归遍历整颗BOM树，查找编号匹配、页面位置最靠前的第一条节点
+/**
+ * @param {Array} list 树数组
+ * @param {string} targetCode 需要匹配的编号
+ * @param {number} selfId 当前编辑行id，搜索时跳过它
+ */
+function findOtherSameCode(list, targetCode, selfId){
+  if(!Array.isArray(list)) return null
+  const target = String(targetCode).trim()
+  for(let item of list){
+    const nodeLabel = String(item.label).trim()
+    // 编号匹配 并且 不是当前自身节点
+    if(nodeLabel === target && Number(item.id) !== Number(selfId)){
+      return item
+    }
+    // 递归查找子节点
+    if(item.children && item.children.length > 0){
+      const res = findOtherSameCode(item.children, targetCode, selfId)
+      if(res) return res
+    }
+  }
+  return null
+}
+// //编号输入框失焦触发
+
+const onCodeChange = (row, fullTree) => {
+  console.log('当前编辑物料编号', row.label, "完整树", fullTree)
+  if(!row.label) return
+  
+  // 解开vue响应式代理数组
+  const rawTree = getRawTree()
+  const matchRow = findOtherSameCode(rawTree, row.label,row.id)
+
+  if(!matchRow) {
+    console.log("没有查到相同编号节点")
+    return
+  }
+
+  console.log('命中节点id',matchRow.id,'当前编辑行id',row.id)
+  const isOther = Number(matchRow.id) !== Number(row.id)
+  console.log('是否是另外一条重复数据', isOther)
+
+  if(isOther){
+    row.cateName = matchRow.cateName
+    row.nameCn = matchRow.nameCn
+    row.nameEn = matchRow.nameEn
+    row.unit = matchRow.unit
+    row.usage = matchRow.usage
+    row.wasteRate = matchRow.wasteRate
+    row.price = matchRow.price
+    row.lockField = true
+    saveField(row)
+  }
+}
+
 </script>
 
 <style scoped>

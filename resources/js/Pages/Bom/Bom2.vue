@@ -242,6 +242,7 @@ function checkRepeatCode(){
   repeatCount.value = repeatCodeList.value.length
 }
 
+
 watch(bomData,()=>{
   checkRepeatCode()
 },{deep:true})
