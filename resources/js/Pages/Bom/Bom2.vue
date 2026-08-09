@@ -47,11 +47,16 @@
       </div>
     </div>
     <!-- BOM信息汇总区 -->
-     <div class="flex bg-gray-400 rounded pl-2">
-        <div>BOM项目条数:</div>
-        <div>BOM总计成本:</div>
+     <div class="bg-gray-400 rounded pl-2">        
         <div>BOM创建时间</div>
         <div>BOM版本号</div>
+        <!-- 顶部状态栏区域 -->
+          <div class="text‑red‑500 ml‑6 ">
+            检测到重复产品编号：{{repeatCount}} 条
+            <div v-for="(item,index) in repeatCodeList" :key="index" class="ml‑3">
+              编号【{{item.code}}】，重复次数：{{item.repeatNum}}
+            </div>
+          </div>
 
      </div>
 
@@ -93,8 +98,9 @@
           <div class="flex bg-red-200 m-1 px-4 rounded-lg">用量</div>
           <div class="flex bg-red-400 m-1 px-4 rounded-lg">单位</div>
           <div class="flex bg-green-400 m-1 px-4 rounded-lg">损耗率</div>
-          <div class="flex bg-green-400 m-1 px-4 rounded-lg">采购单价</div>
+          <div class="flex bg-green-400 m-1 px-4 rounded-lg w-[80px] justify-center">单价</div>
           <div class="flex bg-gray-200 m-1 px-4 rounded-lg">小计成本</div>
+          <div v-if="showIdLevel" class="flex m-1 px-4 w-[80px]"></div>
         </div>
 
         <!-- 右侧操作区,可修改[]中的宽度 -->
@@ -114,6 +120,8 @@
       :name-prefix="namePrefix"
       :digit-length="digitLength"
       :search-keyword="searchKeyword"
+      :repeat-code-list="repeatCodeList"
+      
     />
         <!-- 底部总成本汇总 -->
     <div class="mt-4 bg-slate-200 p-4 rounded shadow flex justify-end">
@@ -129,7 +137,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount,computed, h  } from 'vue';
+import { ref,watch, onMounted, onBeforeUnmount,computed, h  } from 'vue';
 import BomNode from "./BomNode.vue";
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
@@ -142,6 +150,10 @@ import { saveAs } from 'file-saver';
 // 输入框没有绑定回车触发、实时防抖（可选优化）。
 const searchKeyword = ref('')
 
+
+// 树节点基础数据
+const bomData = ref(
+[{"id":0,"label":"整机总成编号","children":[{"id":4,"label":"code0004","children":[{"id":8,"label":"code0008","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover000001","nameCn":"扫地机支架","quantity":6,"unit":"g","wasteRate":1,"price":8,"subtotal":48.48,"bgactive":false,"sn":2,"editField":null,"parentId":4,"unitPopupOpen":false}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labeltr test","nameCn":"扫地机外下壳","quantity":1,"unit":"pcs","wasteRate":1,"price":12,"subtotal":12.12,"bgactive":false,"sn":1,"editField":null,"parentId":0,"unitPopupOpen":false},{"id":1,"label":"code0001","children":[],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"topcover","nameCn":"扫地机电池盒上","quantity":2,"unit":"ass","wasteRate":1,"price":5,"subtotal":10.1,"bgactive":false,"sn":3,"editField":null,"parentId":0,"unitPopupOpen":false}],"productSn":"x000001","nameEn":"Full Machine","nameCn":"整机总成","quantity":1,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"isOpen":true,"isEdit":false,"isNew":false,"bgactive":false,"sn":0,"editField":null,"parentId":null,"unitPopupOpen":false}])
 
 /**
  * 树形搜索过滤，保留完整父链
@@ -184,6 +196,57 @@ const currentBomData = computed(() => {
 })
 
 
+
+//*************BOM物料编号重复检测 */
+// 存放全部重复编号详情
+const repeatCodeList = ref([])
+// 重复编号数量
+const repeatCount = ref(0)
+// 递归遍历树形bom，收集所有产品编号
+function traverseBom(list,arr=[]){
+  list.forEach(item=>{
+    arr.push(item)
+    // 存在子节点继续递归
+    if(item.children && item.children.length>0){
+      traverseBom(item.children,arr)
+    }
+  })
+  return arr
+}
+
+// 统计重复编号
+function checkRepeatCode(){
+  //1.扁平化拿到所有节点
+  const allNode = traverseBom(bomData.value)
+  //2.编号分组map
+  const codeMap = new Map()
+  allNode.forEach(node=>{
+    const num = node.label
+    if(!codeMap.has(num)){
+      codeMap.set(num,[])
+    }
+    codeMap.get(num).push(node)
+  })
+
+  //3.筛选出出现次数大于1的编号
+  repeatCodeList.value = []
+  codeMap.forEach((nodes,code)=>{
+    if(nodes.length >= 2){
+      repeatCodeList.value.push({
+        code:code,
+        nodeList:nodes,
+        repeatNum:nodes.length
+      })
+    }
+  })
+  repeatCount.value = repeatCodeList.value.length
+}
+
+watch(bomData,()=>{
+  checkRepeatCode()
+},{deep:true})
+
+//excel处理
 const activeMenuNodeId = ref(null)
 // provide('activeMenuNodeId', activeMenuNodeId)
 /**
@@ -324,9 +387,7 @@ const checkDigitRange = () => {
   if (digitLength.value > 8) digitLength.value = 8
 }
 
-// 树节点基础数据
-const bomData = ref(
-[{"id":0,"label":"整机总成编号","children":[{"id":4,"label":"code0004","children":[{"id":8,"label":"code0008","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover000001","nameCn":"扫地机支架","quantity":6,"unit":"g","wasteRate":1,"price":8,"subtotal":48.48,"bgactive":false,"sn":2,"editField":null,"parentId":4,"unitPopupOpen":false}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labeltr test","nameCn":"扫地机外下壳","quantity":1,"unit":"pcs","wasteRate":1,"price":12,"subtotal":12.12,"bgactive":false,"sn":1,"editField":null,"parentId":0,"unitPopupOpen":false},{"id":1,"label":"code0001","children":[],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"topcover","nameCn":"扫地机电池盒上","quantity":2,"unit":"ass","wasteRate":1,"price":5,"subtotal":10.1,"bgactive":false,"sn":3,"editField":null,"parentId":0,"unitPopupOpen":false}],"productSn":"x000001","nameEn":"Full Machine","nameCn":"整机总成","quantity":1,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"isOpen":true,"isEdit":false,"isNew":false,"bgactive":false,"sn":0,"editField":null,"parentId":null,"unitPopupOpen":false}])
+
 
 // 接收子组件传递回来的新数据
 const updatebomData = (newData) => {

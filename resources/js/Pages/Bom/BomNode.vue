@@ -1,6 +1,8 @@
 <template>
   <!-- 弹出菜单按数字键快捷 -->
-   <div></div>
+   <div>
+{{  }}
+   </div>
   <div
     v-for="(item, index) in bomData"
     :key="item.id || index"
@@ -41,7 +43,10 @@
         </div>
 
       <!-- 左侧节点名称区域 -->
-      <div class="flex bg-red-200 m-2 justify-start h-6 rounded-s-full rounded min-w-[60px] w-full ">
+      <div class="flex bg-red-200 m-2 justify-start h-6 rounded-s-full rounded min-w-[60px] w-full"
+          :class="isRepeatCode(item.label) ? 'bg-yellow-200' : 'bg-red-200'"
+          :title="isRepeatCode(item.label) ? '⚠️前景黄色表示该物料编号存在重复' : '单击编辑产品编号'
+            ">
         <!-- 编辑按钮下拉菜单容器（铅笔），点击弹出菜单 -->
         
           <div
@@ -51,6 +56,7 @@
                     ? 'bg-red-600'  // 打开菜单：红色背景+白字
                     : ''           // 默认绿色
                 ]" 
+                
             class="flex-shrink-0 bg-green-200 rounded-full w-6 h-6 items-center justify-center cursor-pointer transition-colors hover:ring-2 hover:ring-red-500 hover:ring-offset-1"
             @click.stop="toggleMenu(item.id)"
             >✏
@@ -86,7 +92,6 @@
           class="border border-[#409eff] rounded  py-0.5 outline-none min-w-[120px] text-sm"
           v-focus
           maxlength="20"
-          
         />
         <span
           v-else
@@ -116,7 +121,7 @@
 
           <div
             v-if="activeCateId === item.id"
-            class="absolute z-50 w-[150px] left-0 top-full mt-1 bg-white border rounded shadow-lg p-2"
+            class="absolute z-50 w-[150px] left-10 mt-1 bg-white border rounded shadow-lg top-2"
             @click.stop
           >
               <!-- 判断是否开启新增输入框 -->
@@ -124,26 +129,27 @@
                   v-if="showCateInput"
                   ref="inputRef"
                   v-model="newCateText"
-                  class="w-full border px-2 py-1"
+                  class="absolute w-full h-8 border px-2 py-1 rounded"
                   @keyup.enter="addNewCate(item)"
                   @blur="addNewCate(item)"
+                  v-focus=""
               />
               <!-- 普通下拉选项 -->
               <template v-else>
                   <div
                       v-for="option in cateOptionList"
                       :key="option.value"
-                      class="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                      class="px-3 py-1 hover:bg-gray-100 cursor-pointer"
                       @click="chooseCate(option, item)"
                   >
                       {{ option.cate }}
                   </div>
                   <!-- 点击唤起输入框 -->
                   <div
-                      class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-blue‑500 border‑t"
+                      class="px-3 hover:cursor-pointer bg-red-400 border-t"
                       @click="openAddInput"
                   >
-                      添加类别
+                      <span class="text-white">添加类别</span>
                   </div>
               </template>
           </div>
@@ -156,6 +162,7 @@
                     ? 'bg-red-400 text-white'  // 打开菜单：红色背景+白字
                     : 'bg-green-100'           // 默认绿色
                 ]" 
+                
                 @click.stop="toggleItemMenu(item.id)"               
               >
               <span v-html="highlightText(item.label, props.searchKeyword)"></span>
@@ -188,6 +195,7 @@
               @keyup.enter="saveField(item)"
               class="w-full border border-blue-500 px-1 py-0.5 text-sm outline-none"
               v-focus
+              @dblclick="handleDblClickSelect"
             />
             <div 
               v-else 
@@ -212,6 +220,8 @@
             @keyup.enter="saveField(item)"
             class="w-full border border-blue-500 m-1 px-1 py-0.5 text-sm outline-none"
             v-focus
+            @dblclick="handleDblClickSelect"
+
           />
           <div 
             v-else 
@@ -239,6 +249,7 @@
             @keyup.enter="saveField(item)"
             class="w-16 border border-blue-500 px-1 py-0.5 text-sm outline-none "
             v-focus
+            @dblclick="handleDblClickSelect"
           />
           <span v-else @click="openEditField(item, 'quantity')" class="w-full min-w-0 cursor-pointer text-center">
             <!-- 点击此标签修改用量 -->
@@ -277,6 +288,8 @@
             @keyup.enter="saveField(item)"
             class="w-20 border border-blue-500 px-1 py-0.5 text-sm outline-none"
             v-focus
+            @dblclick="handleDblClickSelect"
+
           />
           <span v-else @click="openEditField(item, 'wasteRate')" class="cursor-pointer text-sm min-w-[60px]">
             {{ item.wasteRate }}%
@@ -293,6 +306,8 @@
             @keyup.enter="saveField(item)"
             class="w-28 border border-blue-500 m-1 px-1 py-0.5 text-sm outline-none"
             v-focus
+            @dblclick="handleDblClickSelect"
+
           />
           <span v-else @click="openEditField(item, 'price')" class="cursor-pointer text-sm min-w-[60px]">
             {{ item.price }}
@@ -300,7 +315,7 @@
         </div>
 
         <!-- 小计成本 只读 -->
-        <div class="flex bg-gray-200 m-1 px-2  min-w-[100px] rounded">
+        <div class="flex bg-gray-200 m-1 px-2  min-w-[90px] rounded">
           <span class="text-sm font-semibold">{{ item.subtotal.toFixed(2) }}</span>
         </div>
       </div>
@@ -363,9 +378,11 @@
         :name-prefix="namePrefix"
         :digit-length="digitLength"
         :search-keyword="searchKeyword"
+        :repeat-code-list="repeatCodeList"
       />
     </div>
   </div>
+ 
 </template>
 
 <script setup>
@@ -388,7 +405,8 @@ const props = defineProps({
   noRepeatName: { type: Boolean, default: true },
   namePrefix: { type: String, default: 'cod' },
   digitLength: { type: Number, default: 1 },
-  searchKeyword: { type: String, default: '' }
+  searchKeyword: { type: String, default: '' },
+  repeatCodeList:{type: Array, default: () => []}
 })
 
 const emit = defineEmits(['update:bom-data'])
@@ -406,6 +424,17 @@ let refreshSerialNumber
 let activeItemId, toggleItemMenu, closeItemMenu, ItemDetail,SupplierInfo,MoldInfo, WhereToUse,JigTools,InspectionTools,SIP,SOP,activeCateId
 let openUnitDropdownId,showCateInput,newCateText,inputRef,openAddInput,addNewCate
 
+
+
+const repeatSet = computed(()=>{
+  return new Set(props.repeatCodeList.map(i=>i.code))
+})
+const isRepeatCode = (code) => {
+  const realCode = code.trim()
+  // console.log('当前节点编号', code, '去除空格后', realCode, repeatSet.value.has(realCode))
+  return repeatSet.value.has(realCode)
+}
+
 // 输入过滤函数配合resources\js\Rules\notAllowedInputCharacters.js
 const handleFilter = (val)=>{
   // exclude不传，代表启用全部黑名单
@@ -415,6 +444,10 @@ const handleFilter = (val)=>{
     // 清洗之后的值回填输入框
     item.name = newVal
   }
+}
+//  // 双击全选输入框文字
+const handleDblClickSelect = (e) => {
+  e.target.select()
 }
 
 // 辅助函数：高亮显示匹配关键词
@@ -426,20 +459,13 @@ const highlightText = (text, keyword) => {
 }
 
 
-const pencilMenuList = ref([
-  { label: '添加（同级）', onClick: (item,index)=>handleAddSibling(item,index) },
-  { label: '添加子物料', onClick: (item)=>handleAddChild(item) },
-  { label: '用已有编号', onClick: (item)=>selectFromExisting(item) },
-  { label: '删除', danger:true, onClick: (index)=>handleDelete(index) },
-])
-
 // 类别下拉数据源
 const cateOptionList =ref([
   {cate:"Plastic",value:1},
   {cate:"PCBA",value:2},
   {cate:"Metal",value:3},
-  {cate:"Semi-ASS",value:4},
-  {cate:"Std",value:5},
+  {cate:"Std",value:4},
+  {cate:"Semi-ASS",value:5},
 
 ])
 
@@ -460,7 +486,7 @@ onMounted(() => {
 })
 onUnmounted(() => {
   if(props.level === 0){
-    document.addEventListener('click', closeAllMenu)
+    document.removeEventListener('click', closeAllMenu)
   }
 })
 // 6. 根层级/子层级区分：注入全局状态 或 初始化全局状态并向下provide
@@ -565,12 +591,14 @@ const addNewCate = (rowItem)=>{
   // 切换物料详情下拉菜单
   toggleMenu = (nodeId) => {
     // console.log("toggleMenu called with nodeId:::::", nodeId);
+    activeCateId.value=null
     activeMenuId.value = null
     activeItemId.value = null    
     activeMenuId.value = activeMenuId.value === nodeId ? null : nodeId
   }
   // 切换物料详情下拉菜单
   toggleItemMenu = (nodeId) => {
+    activeCateId.value=null
     // console.log("toggleItemMenu--> called with nodeId:::::", nodeId);
     if (activeMenuNodeId.value === nodeId) {
       activeMenuNodeId.value = null
@@ -637,9 +665,15 @@ const addNewCate = (rowItem)=>{
       rootbomRef = newTree // 同步更新全局树形引用
       refreshSerialNumber(newTree)
       refreshAllParentId(newTree)
+
     },
     { deep: true }
   )
+
+
+  watch(repeatSet,(newVal)=>{
+  // console.log("重复编号集合",newVal)
+  }, { immediate: true })
 
   // 全局所有状态向下注入子孙组件
   provide('globalDraggingId', globalDraggingId)
@@ -788,17 +822,17 @@ const deleteNode = (index) => {
 
 // ******铅笔下拉菜单绑定回调函数
       const handleAddSibling = (item, idx) => {
-        console.log('****添加（同级）')
+        // console.log('****添加（同级）')
         addSibling(idx)
         closeAllMenu()
       }
       const handleAddChild = (item) => {
-        console.log('****添加子物料')
+        // console.log('****添加子物料')
         addChild(item)
         closeAllMenu()
       }
       const selectFromExisting = (item) => {
-        console.log('****用已有编号')
+        // console.log('****用已有编号')
         // 此处可后续写打开选择已有产品编号弹窗逻辑
         closeAllMenu()
       }
