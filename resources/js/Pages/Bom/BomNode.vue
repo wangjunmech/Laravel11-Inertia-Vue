@@ -186,7 +186,8 @@
               </DropNumShortCut>       
           </div>  
         <!-- 品名英文 -->        
-        <div         
+        <div
+        v-if="getFieldVisible('nameEn')"
           class="flex bg-green-300 m-1 px-2 rounded-sm justify-center min-w-[110px] cursor-pointer">
             <input
               v-if="item.editField === 'nameEn'"
@@ -212,7 +213,9 @@
         </div>
 
         <!-- 品名中文 -->
-        <div class="flex bg-green-300 m-1 px-2 rounded-sm justify-center min-w-[110px] cursor-pointer">
+        <div 
+        v-if="getFieldVisible('nameCn')"
+        class="flex bg-green-300 m-1 px-2 rounded-sm justify-center min-w-[110px] cursor-pointer">
           <input
             v-if="item.editField === 'nameCn'&& !item.lockField"
             v-model="item.nameCn"
@@ -240,7 +243,7 @@
         </div>
 
         <!-- 用量 -->
-        <div class="flex items-center bg-red-200 m-1 px-2 rounded-sm min-w-[60px]">
+        <div v-if="getFieldVisible('quantity')" class="flex items-center bg-red-200 m-1 px-2 rounded-sm min-w-[60px]">
           <input
             v-if="item.editField === 'quantity'"
             v-model.number="item.quantity"
@@ -258,7 +261,7 @@
         </div>
 
         
-        <div class="flex bg-red-400 m-1 px-2 rounded-sm items-center justify-center min-w-[60px]"
+        <div v-if="getFieldVisible('unit')" class="flex bg-red-400 m-1 px-2 rounded-sm items-center justify-center min-w-[60px]"
         @click.stop="!item.lockField && (item.unitPopupOpen = true)">
           <!-- 单位选择************选择组件调用 -->
           <DropdownSubMenu
@@ -281,7 +284,7 @@
         </div>
 
         <!-- 损耗率 -->
-        <div class="flex bg-green-300 m-1 px-2 rounded-sm  justify-center min-w-[60px]">
+        <div v-if="getFieldVisible('wasteRate')" class="flex bg-green-300 m-1 px-2 rounded-sm  justify-center min-w-[60px]">
           <input
             v-if="item.editField === 'wasteRate' && !item.lockField"
             v-model.number="item.wasteRate"
@@ -301,7 +304,7 @@
         </div>
 
         <!-- 采购单价 -->
-        <div class="flex bg-green-400 m-1 px-2 rounded-sm  justify-center min-w-[80px]">
+        <div v-if="getFieldVisible('price')" class="flex bg-green-400 m-1 px-2 rounded-sm  justify-center min-w-[80px]">
           <!-- 如果前面有相同编号的项目,这个重复项的单价要锁定，不能被修改,只能修改最前面一条记录,修改完以后，重新回到这条记录的前面，点击编号，重新更新一遍 -->
           <input
             v-if="item.editField === 'price' && !item.lockField"
@@ -322,7 +325,7 @@
         </div>
 
         <!-- 小计成本 只读 -->
-        <div class="flex bg-gray-200 m-1 px-2  min-w-[90px] rounded">
+        <div v-if="getFieldVisible('subtotal')" class="flex bg-gray-200 m-1 px-2  min-w-[90px] rounded">
           <span class="flex text-sm h-6 items-center font-semibold">{{ item.subtotal.toFixed(2) }}</span>
         </div>
       </div>
@@ -386,6 +389,7 @@
         :digit-length="digitLength"
         :search-keyword="searchKeyword"
         :repeat-code-list="repeatCodeList"
+        :field-options="fieldOptions"
       />
     </div>
   </div>
@@ -413,7 +417,8 @@ const props = defineProps({
   namePrefix: { type: String, default: 'cod' },
   digitLength: { type: Number, default: 1 },
   searchKeyword: { type: String, default: '' },
-  repeatCodeList:{type: Array, default: () => []}
+  repeatCodeList: { type: Array, default: () => [] },
+  fieldOptions:{type:Array, default:()=>[]  }
 })
 
 const emit = defineEmits(['update:bom-data'])
@@ -431,7 +436,13 @@ let refreshSerialNumber
 let activeItemId, toggleItemMenu, closeItemMenu, ItemDetail,SupplierInfo,MoldInfo, WhereToUse,JigTools,InspectionTools,SIP,SOP,activeCateId
 let openUnitDropdownId,showCateInput,newCateText,inputRef,openAddInput,addNewCate
 
+// 子组件通过key快速查找字段状态控制字段显示
 
+const getFieldVisible = (key)=>{
+  // props.fieldOptions 直接读取，禁止解构！
+  const res = props.fieldOptions.find(i=>i.key === key)
+  return res ? res.visible : true
+}
 
 const repeatSet = computed(()=>{
   return new Set(props.repeatCodeList.map(i=>i.code))

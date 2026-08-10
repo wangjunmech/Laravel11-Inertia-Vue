@@ -3,16 +3,7 @@
   <div class="bom-container">
     <div class="bom-header">
       <h2 class="text-2xl font-bold">结构化BOM创建器⏱</h2>
-      <!-- 搜索输入框 -->
-        <input
-          title="搜索BOM"
-          v-model="searchKeyword"
-          @dblclick="searchKeyword = ''"
-          @keyup.enter.prevent="searchKeyword = ''"
-          @keyup.esc.prevent="searchKeyword = ''"
-          placeholder="🔍搜索编号，名称"
-          class="rounded-lg px-1 py-2 max-w-[220px] ml-auto border border-gray-300"
-        >
+
 
       <!-- 复选框绑定修改：不再直接v-model，改用change事件手动控制勾选状态 -->
       <label class="config-toggle">
@@ -24,10 +15,7 @@
         >
         BOM产品编号全局无重复({{ noRepeatName?'是':'否' }})
       </label>
-      <label class="config-toggle">
-        <input type="checkbox" v-model="showIdLevel" class="mr-2">
-        显示ID层级 ({{ showIdLevel }})
-      </label>
+      
       <div class="button-group">
         <button 
           @click="console.log(JSON.stringify(bomData))" 
@@ -45,7 +33,51 @@
               📄 导出 Excel 文件
         </button>
       </div>
+
     </div>
+    <!-- 第2行操作菜单区 -->
+    <div class="flex "> 
+        <!-- 搜索输入框 -->
+        <div class="justify-start items-start">
+          <input
+            title="搜索BOM"
+            v-model="searchKeyword"
+            @dblclick="searchKeyword = ''"
+            @keyup.enter.prevent="searchKeyword = ''"
+            @keyup.esc.prevent="searchKeyword = ''"
+            placeholder="🔍搜索编号，名称"
+            class="rounded-lg h-8 max-w-[220px] ml-auto border border-gray-300"
+          >
+        </div> 
+        <div @click="showControl" class="action-btn ml-4 px-3 py-1 bg-orange-200 hover:bg-slate-200 rounded-lg cursor-pointer">
+              👁︎字段显示选择
+        </div>
+          <!-- 弹窗 -->
+            <div v-if="showFieldPopup" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click="showFieldPopup=false">
+              <div class="bg-white p-5 rounded-lg w-[280px]" @click.stop>
+                <h3 class="font-bold mb-3">勾选需要展示的列表字段</h3>
+                <div v-for="(item,idx) in fieldOptions" :key="item.key" class="flex gap-3 items-center my-2">
+                  <input type="checkbox" v-model="item.visible" @change="toggleField(idx)">
+                  <span>{{item.label}}</span>
+                </div>
+                <div class="flex gap-3 mt-4">
+                  <button @click="fieldOptions.forEach(f=>f.visible=true)" class="px-3 py-1 bg-gray-300 rounded">全选</button>
+                  <button @click="fieldOptions.forEach(f=>f.visible=false)" class="px-3 py-1 bg-gray-300 rounded">全不选</button>
+                  <button @click="showFieldPopup=false" class="px-3 py-1 bg-blue-500 text-white rounded">确定</button>
+                </div>
+              </div>
+            </div>
+        <div class="flex justify-center ml-10 bg-orange-200 items-center px-2 rounded">
+          <label >
+            <input type="checkbox" v-model="showIdLevel" class="mr-2">
+            显示ID层级 ({{ showIdLevel }})
+          </label>
+        </div>
+     
+             
+      
+    </div>
+    <hr class=" border-2 bg-gray-200">
     <!-- BOM信息汇总区 -->
      <div class="bg-gray-400 rounded pl-2">        
         <div>BOM创建时间</div>
@@ -93,13 +125,13 @@
           <div class=" bg-blue-400 m-1 px-4 rounded-lg">序号</div>
           <div class=" bg-yellow-400 m-1 px-4 rounded-lg">类别</div>
           <div class="flex bg-green-100 m-1 px-4 rounded-lg w-[220px] justify-center border">产品编号</div>
-          <div class="flex bg-green-400 m-1 px-4 rounded-lg w-[110px]">品名英</div>
-          <div class="flex bg-green-400 m-1 px-4 rounded-lg w-[110px]">品名中</div>
-          <div class="flex bg-red-200 m-1 px-4 rounded-lg">用量</div>
-          <div class="flex bg-red-400 m-1 px-4 rounded-lg">单位</div>
-          <div class="flex bg-green-400 m-1 px-4 rounded-lg">损耗率</div>
-          <div class="flex bg-green-400 m-1 px-4 rounded-lg w-[80px] justify-center">单价</div>
-          <div class="flex bg-gray-200 m-1 px-4 rounded-lg">小计成本</div>
+          <div v-if="fieldOptions.find(item => item.key === 'nameEn').visible" class="flex bg-green-400 m-1 px-4 rounded-lg w-[110px]">品名英</div>
+          <div v-if="fieldOptions.find(item => item.key === 'nameCn').visible" class="flex bg-green-400 m-1 px-4 rounded-lg w-[110px]">品名中</div>
+          <div v-if="fieldOptions.find(item => item.key === 'quantity').visible" class="flex bg-red-200 m-1 px-4 rounded-lg">用量</div>
+          <div v-if="fieldOptions.find(item => item.key === 'unit').visible" class="flex bg-red-400 m-1 px-4 rounded-lg">单位</div>
+          <div v-if="fieldOptions.find(item => item.key === 'wasteRate').visible" class="flex bg-green-400 m-1 px-4 rounded-lg">损耗率</div>
+          <div v-if="fieldOptions.find(item => item.key === 'price').visible" class="flex bg-green-400 m-1 px-4 rounded-lg w-[80px] justify-center">单价</div>
+          <div v-if="fieldOptions.find(item => item.key === 'subtotal').visible" class="flex bg-gray-200 m-1 px-4 rounded-lg">小计成本</div>
           <div v-if="showIdLevel" class="flex m-1 px-4 w-[80px]"></div>
         </div>
 
@@ -121,7 +153,7 @@
       :digit-length="digitLength"
       :search-keyword="searchKeyword"
       :repeat-code-list="repeatCodeList"
-      
+      :field-options="fieldOptions"
     />
         <!-- 底部总成本汇总 -->
     <div class="mt-4 bg-slate-200 p-4 rounded shadow flex justify-end">
@@ -150,6 +182,27 @@ import { saveAs } from 'file-saver';
 // 输入框没有绑定回车触发、实时防抖（可选优化）。
 const searchKeyword = ref('')
 
+// 控制字段显示弹窗开关
+
+const showFieldPopup = ref(false)
+const fieldOptions = ref([
+  { label:"品名英", key:"nameEn", visible:true },
+  { label:"品名中", key:"nameCn", visible:true },
+  { label:"用量", key:"quantity", visible:true },
+  { label:"单位", key:"unit", visible:true },
+  { label:"损耗率", key:"wasteRate", visible:true },
+  { label:"单价", key:"price", visible:true },
+  { label:"小计成本", key:"subtotal", visible:true }
+])
+const showControl = ()=>{
+  showFieldPopup.value = !showFieldPopup.value
+}
+
+// 父组件封装字段查询函数
+const getFieldVisible = (key) =>{
+  const findItem = fieldOptions.value.find(item=> item.key === key)
+  return findItem?.visible ?? true
+}
 
 // 树节点基础数据
 const bomData = ref(
@@ -497,21 +550,21 @@ const BomTotalCost = computed(()=>{
 <style scoped>
 .bom-container {
   width:98%;
-  margin: 30px auto;  
+  margin: 10px auto;  
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   background-color: #fff;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  padding: 15px;
+  padding: 6px;
 }
 .bom-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 6px;
   border-bottom: 1px solid #f0f0f0;
-  padding-bottom: 10px;
+  padding-bottom: 6px;
   margin-bottom: 15px;
   
 }
