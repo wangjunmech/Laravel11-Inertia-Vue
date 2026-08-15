@@ -1,8 +1,5 @@
-<template>
-  <!-- 弹出菜单按数字键快捷 -->
-   <div>
-{{  }}
-   </div>
+<template>  
+<div>  
   <div
     v-for="(item, index) in bomData"
     :key="item.id || index"
@@ -44,8 +41,8 @@
 
       <!-- 左侧节点名称区域 -->
       <div class="flex bg-red-200 m-2 justify-start h-6 rounded-s-full rounded min-w-[60px] w-full"
-          :class="isRepeatCode(item.label) ? 'bg-yellow-200' : 'bg-red-200'"
-          :title="isRepeatCode(item.label) ? '⚠️前景黄色表示该物料编号存在重复' : '单击编辑产品编号'
+          :class="isRepeatCode(item.partCode) ? 'bg-yellow-200' : 'bg-red-200'"
+          :title="isRepeatCode(item.partCode) ? '⚠️前景黄色表示该物料编号存在重复' : '单击编辑产品编号'
             ">
         <!-- 编辑按钮下拉菜单容器（铅笔），点击弹出菜单 -->
         
@@ -69,11 +66,11 @@
                   :isOpen="activeMenuId === item.id"
                   @update:isOpen="(val) => val ? toggleMenu(item.id) : closeAllMenu()"
                   :menu-list="[
-                    { label: '添加（同级）', onClick: () => handleAddSibling(item, index) },
-                    { label: '添加子物料', onClick: () => handleAddChild(item) },
-                    { label: '添加工程流程子料号', onClick: () => handleProcessCode(item) },
-                    { label: '用已有编号', onClick: () => selectFromExisting(item) },
-                    { label: '删除',danger:true, onClick: () => handleDelete(index) },
+                    { subMenuLabel: '添加（同级）', onClick: () => handleAddSibling(item, index) },
+                    { subMenuLabel: '添加子物料', onClick: () => handleAddChild(item) },
+                    { subMenuLabel: '添加工程流程子料号', onClick: () => handleProcessCode(item) },
+                    { subMenuLabel: '用已有编号', onClick: () => selectFromExisting(item) },
+                    { subMenuLabel: '删除',danger:true, onClick: () => handleDelete(index) },
                   ]"
             >
           </DropNumShortCut>
@@ -83,11 +80,11 @@
         <input
           title="编号长度最多20位"
           v-if="item.isEdit"
-          v-model="item.tempLabel"
-          @blur="saveLabel(item, bomData, $event)"
+          v-model="item.tempPartCode"
+          @blur="savePartCode(item, bomData, $event)"
           @keyup.enter="$event.target.blur()"
-          @keyup="item.tempLabel=keyUp(item.tempLabel,['-','_'])[2]"
-          @paste.prevent="item.tempLabel = keyUp($event.clipboardData.getData('text'),['-','_'])[2]"
+          @keyup="item.tempPartCode=keyUp(item.tempPartCode,['-','_'])[2]"
+          @paste.prevent="item.tempPartCode = keyUp($event.clipboardData.getData('text'),['-','_'])[2]"
           @focus="$event.target.select()"
           class="border border-[#409eff] rounded  py-0.5 outline-none min-w-[120px] text-sm"
           v-focus
@@ -97,7 +94,7 @@
           v-else
           @click="startEdit(item)"
           class="px-1.5 py-0.5 rounded text-sm text-[#333]  hover:bg-black/5 w-full cursor-pointer"
-          v-html="highlightText(item.label, props.searchKeyword)"
+          v-html="highlightText(item.partCode, props.searchKeyword)"
         >          
         </span>
       </div>
@@ -115,12 +112,13 @@
         class="flex rounded-lg bg-yellow-400 m-1 px-3 justify-center min-w-[60px] relative">
           <div class="flex cursor-pointer"           
             @click.stop="closeAllMenu();activeCateId = item.id"     
-          >
-            {{ item.cateName || "类别" }}
+          >          
+          {{ item.id === 0 ? 0 : (item.cateName || "类别") }}
+            <!-- {{ (item.id !== 0 && item.cateName) ? item.cateName : "类别" }} -->
           </div>
 
           <div
-            v-if="activeCateId === item.id"
+            v-if="activeCateId === item.id && item.id!=0"
             class="absolute z-50 w-[150px] left-10 mt-1 bg-white border rounded shadow-lg top-2"
             @click.stop
           >
@@ -130,17 +128,17 @@
                   ref="inputRef"
                   v-model="newCateText"
                   class="absolute w-full h-8 border px-2 py-1 rounded"
-                  @keyup.enter="addNewCate(item)"
-                  @blur="addNewCate(item)"
+                  @keyup.enter="$emit('add-cate', item, newCateText);activeCateId = null"
+                  @blur="closeAllMenu()"
                   v-focus=""
               />
               <!-- 普通下拉选项 -->
               <template v-else>
                   <div
                       v-for="option in cateOptionList"
-                      :key="option.value"
+                      :key="option.cateId"
                       class="px-3 py-1 hover:bg-gray-100 cursor-pointer"
-                      @click="chooseCate(option, item)"
+                      @click="$emit('select-cate', item, option);activeCateId = null"
                   >
                       {{ option.cate }}
                   </div>
@@ -165,7 +163,7 @@
                 
                 @click.stop="toggleItemMenu(item.id)"               
               >
-              <span v-html="highlightText(item.label, props.searchKeyword)"></span>
+              <span v-html="highlightText(item.partCode, props.searchKeyword)"></span>
             <!-- 物料编号操作下拉菜单组件 -->
                 <DropNumShortCut    
                 class="left-[60px] top-[0px] rounded-sm "                      
@@ -173,14 +171,14 @@
                   @update:isOpen="(val) => val ? toggleItemMenu(item.id) : closeAllMenu()"                  
                   placement="center"
                   :menu-list="[
-                    { label: '物料详情', onClick: () => ItemDetail(item) },
-                    { label: '供应商信息', onClick: () => SupplierInfo(item) },
-                    { label: '模具信息', onClick: () => MoldInfo(item) },
-                    { label: '使用场合', onClick: () => WhereToUse(item) },
-                    { label: '工装夹具', onClick: () => JigTools(item) },
-                    { label: '检测工具', onClick: () => InspectionTools(item) },
-                    { label: '检验规范', onClick: () => SIP(item) },
-                    { label: '操作指导', onClick: () => SOP(item) }
+                    { subMenuLabel: '物料详情', onClick: () => ItemDetail(item) },
+                    { subMenuLabel: '供应商信息', onClick: () => SupplierInfo(item) },
+                    { subMenuLabel: '模具信息', onClick: () => MoldInfo(item) },
+                    { subMenuLabel: '使用场合', onClick: () => WhereToUse(item) },
+                    { subMenuLabel: '工装夹具', onClick: () => JigTools(item) },
+                    { subMenuLabel: '检测工具', onClick: () => InspectionTools(item) },
+                    { subMenuLabel: '检验规范', onClick: () => SIP(item) },
+                    { subMenuLabel: '操作指导', onClick: () => SOP(item) }
                   ]"
                 >
               </DropNumShortCut>       
@@ -390,16 +388,19 @@
         :search-keyword="searchKeyword"
         :repeat-code-list="repeatCodeList"
         :field-options="fieldOptions"
+        :cate-option-list="cateOptionList"
+        @select-cate="(row,opt)=>emit('select-cate',row,opt)"
+        @add-cate="(row,txt)=>emit('add-cate',row,txt)"
       />
     </div>
   </div>
- 
+</div> 
 </template>
 
 <script setup>
 // 1. 模块导入
 import { ref,toRaw, watch, onMounted, onUnmounted, provide, inject, computed,nextTick, h } from 'vue'
-import DropdownMenu from '@/Components/DropdownMenu.vue'
+// import DropdownMenu from '@/Components/DropdownMenu.vue'
 import DropdownSubMenu from '@/Components/DropdownSubMenu.vue'
 import { useBomStore } from '@/Stores/bomStore.js'
 //引入单位数据供点击弹出单位子菜单用
@@ -418,10 +419,16 @@ const props = defineProps({
   digitLength: { type: Number, default: 1 },
   searchKeyword: { type: String, default: '' },
   repeatCodeList: { type: Array, default: () => [] },
-  fieldOptions:{type:Array, default:()=>[]  }
+  fieldOptions: { type: Array, default: () => [] },
+  cateOptionList:{ type: Array, default: () => [] },
+  
 })
 
-const emit = defineEmits(['update:bom-data'])
+const emit = defineEmits([
+  'update:bom-data',
+  'select-cate',
+  'add-cate'
+])
 const fullBomTree = ref(props.bomData)
 // 3. 基础局部响应式变量 + 自定义指令
 const localShowInfo = ref(props.showIdLevel)
@@ -477,15 +484,6 @@ const highlightText = (text, keyword) => {
 }
 
 
-// 类别下拉数据源
-const cateOptionList =ref([
-  {cate:"Plastic",value:1},
-  {cate:"PCBA",value:2},
-  {cate:"Metal",value:3},
-  {cate:"Std",value:4},
-  {cate:"Semi-ASS",value:5},
-
-])
 
 const chooseCate = (opt,rowItem)=>{
   if(!rowItem) return
@@ -508,7 +506,7 @@ onUnmounted(() => {
   }
 })
 
-const getRawTree = inject('getRawTree')
+// const getRawTree = inject('getRawTree')
 
 
 // const rawTree = getRawTree()
@@ -522,8 +520,7 @@ if (props.level !== 0) {
   inputRef = inject('inputRef')
   openAddInput = inject('openAddInput')
   addNewCate = inject('addNewCate')
-  // chooseCate = inject('chooseCate')
-  // cateOptionList = inject('cateOptionList')
+ 
 
 
   globalDraggingId = inject('globalDraggingId')
@@ -567,35 +564,17 @@ if (props.level !== 0) {
   activeCateId = ref(null)
   showCateInput = ref(false)
   newCateText = ref('')
-  inputRef = ref(0)
+  inputRef = ref(null)
 
   // 打开类别输入框并且自动聚焦
-const openAddInput = async ()=>{
-    showCateInput.value = true
-    await nextTick()
-    inputRef.value.focus()
+  const openAddInput = () => {
+    console.log('openAddInput====')
+    showCateInput.value = true //显示类别输入框
+    newCateText.value = ''//类别输入框置空
+    // closeAllMenu()
   }
 
-
-// 新增自定义类别
-const addNewCate = (rowItem)=>{
-    const name = newCateText.value.trim()
-    if(!name) {
-        showCateInput.value = false
-        return
-    }
-    // 添加进下拉选项
-    cateOptionList.value.push({
-        cate:name,
-        value:Date.now()
-    })
-    // 当前行赋值新类别
-    rowItem.cateName = name
-    // 重置全部状态、关闭弹窗
-    newCateText.value = ''
-    showCateInput.value = false
-    activeCateId.value = null
-}
+  
   //关闭全部弹出菜单
   closeAllMenu = () => {
     activeMenuId.value = null
@@ -603,6 +582,7 @@ const addNewCate = (rowItem)=>{
     activeMenuNodeId.value = null // 关闭菜单清空高亮
     activeCateId.value = null// 关闭类别菜单
     showCateInput.value = false// 关闭类别输入框
+    
   }
 
   // 关闭物料详情下拉菜单
@@ -724,7 +704,7 @@ const addNewCate = (rowItem)=>{
   provide('showCateInput', showCateInput)
   provide('newCateText', newCateText)
   provide('inputRef', inputRef)
-  provide('cateOptionList', cateOptionList)
+  // provide('cateOptionList', cateOptionList)
 
 
   provide('toggleItemMenu', toggleItemMenu)
@@ -742,8 +722,8 @@ const addNewCate = (rowItem)=>{
 const getDefaultNode = (nodeId, nodeName, parentPid = null) => ({
   id: nodeId,
   parentId: parentPid,
-  label: nodeName,
-  tempLabel: nodeName,
+  partCode: nodeName,
+  tempPartCode: nodeName,
   children: [],
   isOpen: false,
   isEdit: true,
@@ -802,7 +782,7 @@ const addSibling = (idx) => {
   }
   globalMaxId.value += 1
   const newId = globalMaxId.value
-  const newLabel = generateUniqueLabel(rootbomRef, props.bomData, props.namePrefix, props.digitLength, props.noRepeatName)
+  const newLabel = generateUniqueCode(rootbomRef, props.bomData, props.namePrefix, props.digitLength, props.noRepeatName)
   // 同级节点父ID = 当前节点的parentId
   const newNode = getDefaultNode(newId, newLabel, props.bomData[idx].parentId)
   const list = [...props.bomData]
@@ -817,7 +797,7 @@ const addChild = (item) => {
   if (!item.children) item.children = []
   globalMaxId.value += 1
   const newId = globalMaxId.value
-  const autoLabel = generateUniqueLabel(rootbomRef, props.bomData, props.namePrefix, props.digitLength, props.noRepeatName)
+  const autoLabel = generateUniqueCode(rootbomRef, props.bomData, props.namePrefix, props.digitLength, props.noRepeatName)
   // 子节点父ID = 父节点item.id
   const newField = getDefaultNode(newId, autoLabel, item.id)
   item.children.push(newField)
@@ -871,7 +851,7 @@ const deleteNode = (index) => {
 // ******物料编号相关操作下拉菜单绑定回调函数
 
   ItemDetail = (item) => {
-    console.log(item.label+'****物料详情')
+    console.log(item.partCode+'****物料详情')
     activeItemId.value = null
   }
   SupplierInfo = (item) => {
@@ -914,15 +894,15 @@ const deleteNode = (index) => {
 
 // 10. 节点名称编辑逻辑
 const startEdit = (item) => {
-  item.tempLabel = item.label
+  item.tempPartCode = item.partCode
   item.isEdit = true
 }
 
-const saveLabel = (item, siblingsArr, event) => {
+const savePartCode = (item, siblingsArr, event) => {
   if (!item.isEdit || isVerifying.value) return
-  const rawLabel = item.tempLabel || ''
-  const trimmedLabel = rawLabel.trim().replace(/\s/g, "")
-  if (!trimmedLabel) {
+  const rawCode = item.tempPartCode || ''
+  const trimmedPartCode = rawCode.trim().replace(/\s/g, "")
+  if (!trimmedPartCode) {
     isVerifying.value = true
     alert('节点名称不能为空！')
     setTimeout(() => {
@@ -931,7 +911,7 @@ const saveLabel = (item, siblingsArr, event) => {
     }, 50)
     return
   }
-  const hasRepeat = checkLabelRepeat(trimmedLabel, item, siblingsArr, rootbomRef, props.noRepeatName)
+  const hasRepeat = checkRepeatCode(trimmedPartCode, item, siblingsArr, rootbomRef, props.noRepeatName)
   if (hasRepeat) {
     alert(props.noRepeatName ? '该名称整BOM内已存在，不可重复' : '同级目录下该名称已存在，请更换')
     setTimeout(() => {
@@ -941,10 +921,10 @@ const saveLabel = (item, siblingsArr, event) => {
     return
   }
 
-  item.label = trimmedLabel
+  item.partCode = trimmedPartCode
   item.isEdit = false
   item.isNew = false
-  delete item.tempLabel
+  delete item.tempPartCode
 
   onCodeChange(item, fullBomTree.value)
   fullBomTree.value = JSON.parse(JSON.stringify(props.bomData))
@@ -955,7 +935,7 @@ const saveLabel = (item, siblingsArr, event) => {
 
   //保存编号之后校验是否还存在重复编号
 const rawTree = getRawTree()
-const repeatRow = findOtherSameCode(rawTree,item.label,item.id)
+const repeatRow = findOtherSameCode(rawTree,item.partCode,item.id)
 if(!repeatRow){
   item.lockField = false
 }
@@ -964,11 +944,11 @@ if(!repeatRow){
   refreshSerialNumber()
 }
 
-const checkLabelRepeat = (label, currentItem, siblings, tree, isGlobal) => {
+const checkRepeatCode = (code, currentItem, siblings, tree, isGlobal) => {
   if(isGlobal){
-    return checkLabelExistsGlobal(label, tree, currentItem.id)
+    return checkCodeExistsGlobal(code, tree, currentItem.id)
   }else{
-    return siblings.some(n => n.label === label && n.id !== currentItem.id)
+    return siblings.some(n => n.partCode === code && n.id !== currentItem.id)
   }
 }
 
@@ -1069,12 +1049,12 @@ function rootMoveNodeCenter(dragId, targetId, position) {
 }
 
 // 全局工具函数 
-const checkLabelExistsGlobal = (label, nodes, currentId) => {
+const checkCodeExistsGlobal = (code, nodes, currentId) => {
   for (const node of nodes) {
-    const activeLabel = node.isEdit && node.tempLabel ? node.tempLabel : node.label
-    if (activeLabel === label && node.id !== currentId) return true
+    const activeLabel = node.isEdit && node.tempPartCode ? node.tempPartCode : node.partCode
+    if (activeLabel === code && node.id !== currentId) return true
     if (node.children && node.children.length > 0) {
-      if (checkLabelExistsGlobal(label, node.children, currentId)) return true
+      if (checkCodeExistsGlobal(code, node.children, currentId)) return true
     }
   }
   return false
@@ -1082,13 +1062,13 @@ const checkLabelExistsGlobal = (label, nodes, currentId) => {
 
 const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-function generateUniqueLabel(tree, siblings, prefix, len, isGlobal=1) {
+function generateUniqueCode(tree, siblings, prefix, len, isGlobal=1) {
   let maxNum = 0
   const reg = new RegExp(`^${escapeRegExp(prefix)}(\\d+)$`)
   if (isGlobal) {
     const traverse = (list) => {
       list.forEach(node => {
-        const match = node.label.match(reg)
+        const match = node.partCode.match(reg)
         if (match) {
           const n = parseInt(match[1])
           if (n > maxNum) maxNum = n
@@ -1099,7 +1079,7 @@ function generateUniqueLabel(tree, siblings, prefix, len, isGlobal=1) {
     traverse(tree)
   } else {
     siblings.forEach(node => {
-      const match = node.label.match(reg)
+      const match = node.partCode.match(reg)
       if (match) {
         const n = parseInt(match[1])
         if (n > maxNum) maxNum = n
@@ -1166,7 +1146,7 @@ function findOtherSameCode(list, targetCode, selfId){
   if(!Array.isArray(list)) return null
   const target = String(targetCode).trim()
   for(let item of list){
-    const nodeLabel = String(item.label).trim()
+    const nodeLabel = String(item.partCode).trim()
     // 编号匹配 并且 不是当前自身节点
     if(nodeLabel === target && Number(item.id) !== Number(selfId)){
       return item
@@ -1182,12 +1162,12 @@ function findOtherSameCode(list, targetCode, selfId){
 // //编号输入框失焦触发
 
 const onCodeChange = (row, fullTree) => {
-  console.log('当前编辑物料编号', row.label, "完整树", fullTree)
-  if(!row.label) return
+  console.log('当前编辑物料编号', row.partCode, "完整树", fullTree)
+  if(!row.partCode) return
   
   // 解开vue响应式代理数组
   const rawTree = getRawTree()
-  const matchRow = findOtherSameCode(rawTree, row.label,row.id)
+  const matchRow = findOtherSameCode(rawTree, row.partCode,row.id)
 
   if(!matchRow) {
     console.log("没有查到相同编号节点")

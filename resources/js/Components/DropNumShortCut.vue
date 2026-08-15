@@ -16,7 +16,7 @@
         @click="handleMenuItemClick(item,idx)"
       >
         <span class="mr-1">{{ idx + 1 }}.</span>
-        {{ item.label }}
+        {{ item.subMenuLabel }}
       </div>
     </div>
   </div>

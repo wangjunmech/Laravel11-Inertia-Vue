@@ -1,5 +1,4 @@
-<template>
-  <div>类别筛选器，单位选择，保存，导入</div>
+<template>  
   <div class="bom-container">
     <div class="bom-header">
       <h2 class="text-2xl font-bold">结构化BOM创建器⏱</h2>
@@ -49,24 +48,51 @@
             class="rounded-lg h-8 max-w-[220px] ml-auto border border-gray-300"
           >
         </div> 
-        <div @click="showControl" class="action-btn ml-4 px-3 py-1 bg-orange-200 hover:bg-slate-200 rounded-lg cursor-pointer">
-              👁︎字段显示选择
-        </div>
-          <!-- 弹窗 -->
-            <div v-if="showFieldPopup" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click="showFieldPopup=false">
+
+        <!-- 类别筛选按钮及弹窗 -->
+        <div>
+          <div @click="cateFilterControl" class="action-btn ml-4 px-3 py-1 bg-orange-200 hover:bg-slate-200 rounded-lg cursor-pointer">
+              类别筛选
+          </div>
+            <!-- 类别弹窗 -->
+            <div v-if="cateFilterFlag" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click="cateFilterFlag=false">
               <div class="bg-white p-5 rounded-lg w-[280px]" @click.stop>
-                <h3 class="font-bold mb-3">勾选需要展示的列表字段</h3>
-                <div v-for="(item,idx) in fieldOptions" :key="item.key" class="flex gap-3 items-center my-2">
-                  <input type="checkbox" v-model="item.visible" @change="toggleField(idx)">
-                  <span>{{item.label}}</span>
+                <h3 class="font-bold mb-3">勾选需要展示的类别</h3>
+                <div v-for="(item) in cateOptionList" :key="item.cateId" class="flex gap-3 items-center my-2">
+                  <input type="checkbox" v-model="item.showCate" >
+                  <span>{{item.cate}}</span>
                 </div>
                 <div class="flex gap-3 mt-4">
-                  <button @click="fieldOptions.forEach(f=>f.visible=true)" class="px-3 py-1 bg-gray-300 rounded">全选</button>
-                  <button @click="fieldOptions.forEach(f=>f.visible=false)" class="px-3 py-1 bg-gray-300 rounded">全不选</button>
-                  <button @click="showFieldPopup=false" class="px-3 py-1 bg-blue-500 text-white rounded">确定</button>
+                  <button @click="checkAllCate" class="px-3 py-1 bg-gray-300 rounded">全选</button>
+                  <button @click="unCheckAllCate" class="px-3 py-1 bg-gray-300 rounded">全不选</button>
+                  <button @click="handleCateConfirm" class="px-3 py-1 bg-blue-500 text-white rounded">确定</button>                  <!-- <button @click="cateFilter;filterBomTree()" class="px-3 py-1 bg-blue-500 text-white rounded">确定</button> -->
                 </div>
               </div>
             </div>
+        </div>
+        <!-- 字段筛选 -->
+        <div>
+          <div @click="showFiledControl" class="action-btn ml-4 px-3 py-1 bg-orange-200 hover:bg-slate-200 rounded-lg cursor-pointer">
+                👁︎字段显示选择
+          </div>
+            <!-- 弹窗 -->
+          <div v-if="showFieldPopup" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click="showFieldPopup=false">
+                <div class="bg-white p-5 rounded-lg w-[280px]" @click.stop>
+                  <h3 class="font-bold mb-3">勾选需要展示的列表字段</h3>
+                  <div v-for="(item,idx) in fieldOptions" :key="item.key" class="flex gap-3 items-center my-2">
+                    <input type="checkbox" v-model="item.visible" @change="toggleField(idx)">
+                    <span>{{item.fieldLabel}}</span>
+                  </div>
+                  <div class="flex gap-3 mt-4">
+                    <button @click="fieldOptions.forEach(f=>f.visible=true)" class="px-3 py-1 bg-gray-300 rounded">全选</button>
+                    <button @click="fieldOptions.forEach(f=>f.visible=false)" class="px-3 py-1 bg-gray-300 rounded">全不选</button>
+                    <button @click="showFieldPopup=false" class="px-3 py-1 bg-blue-500 text-white rounded">确定</button>
+                  </div>
+                </div>
+          </div>
+        </div>
+
+        <!--ID层级控制按钮  -->
         <div class="flex justify-center ml-10 bg-orange-200 items-center px-2 rounded">
           <label >
             <input type="checkbox" v-model="showIdLevel" class="mr-2">
@@ -83,9 +109,9 @@
         <div>BOM创建时间</div>
         <div>BOM版本号</div>
         <!-- 顶部状态栏区域 -->
-          <div class="text‑red‑500 ml‑6 ">
+          <div class="text-red-500 ml-6 ">
             检测到重复产品编号：{{repeatCount}} 条
-            <div v-for="(item,index) in repeatCodeList" :key="index" class="ml‑3">
+            <div v-for="(item,index) in repeatCodeList" :key="index" class="ml-3">
               编号【{{item.code}}】，重复次数：{{item.repeatNum}}
             </div>
           </div>
@@ -154,6 +180,9 @@
       :search-keyword="searchKeyword"
       :repeat-code-list="repeatCodeList"
       :field-options="fieldOptions"
+      :cate-option-list="cateOptionList"
+      @select-cate="handleSelectCate"
+      @add-cate="handleAddCate"
     />
         <!-- 底部总成本汇总 -->
     <div class="mt-4 bg-slate-200 p-4 rounded shadow flex justify-end">
@@ -165,6 +194,9 @@
         <b class="text-red-600  ml-2">{{ BomTotalCost }} 元</b>
       </span>
     </div>
+
+    <!--待优化问题 -->
+    <div class="text-red-500">待改进问题：类别筛选器，单位选择，保存，导入</div>
   </div>
 </template>
 
@@ -180,22 +212,107 @@ import { saveAs } from 'file-saver';
 // 搜索后树形结构容易断裂，需要保留完整父级链路（不能只过滤零散节点，否则树形缩进直接错乱）；
 // 没有清空搜索时恢复原始数据；
 // 输入框没有绑定回车触发、实时防抖（可选优化）。
-const searchKeyword = ref('')
+const searchKeyword = ref('') //搜索关键字
 
 // 控制字段显示弹窗开关
-
-const showFieldPopup = ref(false)
 const fieldOptions = ref([
-  { label:"品名英", key:"nameEn", visible:true },
-  { label:"品名中", key:"nameCn", visible:true },
-  { label:"用量", key:"quantity", visible:true },
-  { label:"单位", key:"unit", visible:true },
-  { label:"损耗率", key:"wasteRate", visible:true },
-  { label:"单价", key:"price", visible:true },
-  { label:"小计成本", key:"subtotal", visible:true }
+  { fieldLabel:"品名英", key:"nameEn", visible:true },
+  { fieldLabel:"品名中", key:"nameCn", visible:true },
+  { fieldLabel:"用量", key:"quantity", visible:true },
+  { fieldLabel:"单位", key:"unit", visible:true },
+  { fieldLabel:"损耗率", key:"wasteRate", visible:true },
+  { fieldLabel:"单价", key:"price", visible:true },
+  { fieldLabel:"小计成本", key:"subtotal", visible:true }
 ])
-const showControl = ()=>{
+//控制字段显示
+const showFieldPopup = ref(false)
+const showFiledControl = ()=>{
   showFieldPopup.value = !showFieldPopup.value
+}
+
+// 控制类别筛选弹窗开关
+const cateFilterFlag = ref(false)
+const cateFilterControl = ()=>{
+  cateFilterFlag.value = !cateFilterFlag.value
+}
+
+//类别筛选动作开关
+const activeCateFilter = ref([])
+/**
+ * 类别树形过滤，保留完整父链路
+ * @param {Array} tree 原始bom树
+ * @param {Array} allowCateArr 允许显示的cateName集合
+ * @returns 过滤后的树
+ */
+const filterBomByCate = (tree, allowCateArr) => {
+  // 空数组 = 全部类别放行，不做过滤
+  if(!allowCateArr || allowCateArr.length === 0) return [...tree]
+  const result = []
+  for(const node of tree){
+    //递归处理子节点
+    const childFiltered = filterBomByCate(node.children || [], allowCateArr)
+    // 当前节点是否匹配类别
+    const nodeMatch = allowCateArr.includes(node.cateName)
+    // 当前节点匹配 或者 子节点有匹配，保留该节点
+    if(nodeMatch || childFiltered.length > 0){
+      const newNode = {...node}
+      newNode.children = childFiltered
+      newNode.isOpen = true
+      result.push(newNode)
+    }
+  }
+  return result
+}
+
+
+const handleCateConfirm = () => {
+activeCateFilter.value = getCheckedCateList()
+cateFilterFlag.value = false
+}
+//父组件-全选
+const checkAllCate = () => {
+  cateOptionList.value.forEach(item => {
+    item.showCate = true
+  })
+}
+//取消全选
+const unCheckAllCate = () => {
+  cateOptionList.value.forEach(item => {
+    item.showCate = false
+  })
+}
+
+// 获取所有已经的类别
+const getCheckedCateList = () => {
+  // 兜底：确保一定是数组，不是就返回空数组
+  console.log('')
+  if(!Array.isArray(cateOptionList)){
+    return []
+  }
+  return cateOptionList.filter(opt => opt.showCate)
+}
+const activeCateSet = computed(()=>{
+  return new Set(
+    cateOptionList.filter(opt => opt.showCate).map(opt => opt.cate)
+  )
+})
+const filteredBomData = computed(()=>{
+  if(activeCateSet.value.size === 0){
+    return JSON.parse(JSON.stringify(bomData))
+  }
+  return filterBomTree(bomData, activeCateSet.value)
+})
+
+//控制类别筛选复选框
+const cateSelect = () => {
+  // console.log()
+  let selectedCateArr = getCheckedCateList()
+  cateSelectFlag.value = !cateSelectFlag.value 
+  // let res= filterCate(bomData,selectedCateArr)
+  // console.log('************cateSelect'+cateSelectFlag.value)
+  // console.log(selectedCateArr)
+  // return res
+
 }
 
 // 父组件封装字段查询函数
@@ -206,7 +323,7 @@ const getFieldVisible = (key) =>{
 
 // 树节点基础数据
 const bomData = ref(
-[{"id":0,"label":"整机总成编号","children":[{"id":4,"label":"code0004","children":[{"id":8,"label":"code0008","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labelcover000001","nameCn":"扫地机支架","quantity":6,"unit":"g","wasteRate":1,"price":8,"subtotal":48.48,"bgactive":false,"sn":2,"editField":null,"parentId":4,"unitPopupOpen":false}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labeltr test","nameCn":"扫地机外下壳","quantity":1,"unit":"pcs","wasteRate":1,"price":12,"subtotal":12.12,"bgactive":false,"sn":1,"editField":null,"parentId":0,"unitPopupOpen":false},{"id":1,"label":"code0001","children":[],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"topcover","nameCn":"扫地机电池盒上","quantity":2,"unit":"ass","wasteRate":1,"price":5,"subtotal":10.1,"bgactive":false,"sn":3,"editField":null,"parentId":0,"unitPopupOpen":false}],"productSn":"x000001","nameEn":"Full Machine","nameCn":"整机总成","quantity":1,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"isOpen":true,"isEdit":false,"isNew":false,"bgactive":false,"sn":0,"editField":null,"parentId":null,"unitPopupOpen":false}])
+[{"id":0,"partCode":"整机总成编号","children":[{"id":4,"partCode":"code0004","children":[{"id":8,"partCode":"code0008","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labselcover000001","nameCn":"扫地机支架","quantity":6,"unit":"g","wasteRate":1,"price":8,"subtotal":48.48,"bgactive":false,"sn":2,"editField":null,"parentId":4,"unitPopupOpen":false}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"lsabeltr test","nameCn":"扫地机外下壳","quantity":1,"unit":"pcs","wasteRate":1,"price":12,"subtotal":12.12,"bgactive":false,"sn":1,"editField":null,"parentId":0,"unitPopupOpen":false},{"id":1,"partCode":"code0001","children":[],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"topcover","nameCn":"扫地机电池盒上","quantity":2,"unit":"ass","wasteRate":1,"price":5,"subtotal":10.1,"bgactive":false,"sn":3,"editField":null,"parentId":0,"unitPopupOpen":false}],"productSn":"x000001","nameEn":"Full Machine","nameCn":"整机总成","quantity":1,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"isOpen":true,"isEdit":false,"isNew":false,"bgactive":false,"sn":0,"editField":null,"parentId":null,"unitPopupOpen":false}])
 
 /**
  * 树形搜索过滤，保留完整父链
@@ -220,7 +337,7 @@ const filterBomTree = (tree, keyword) => {
   const result = []
   for (const node of tree) {
     const isMatch =
-      node.label?.toLowerCase().includes(kw) ||
+      node.partCode?.toLowerCase().includes(kw) ||
       node.nameEn?.toLowerCase().includes(kw) ||
       node.nameCn?.toLowerCase().includes(kw)
 
@@ -240,16 +357,67 @@ const filterBomTree = (tree, keyword) => {
 
 // 计算属性：对外提供过滤后的BOM数据
 const currentBomData = computed(() => {
-  // const tree = filterBomTree(bomData.value, searchKeyword.value)
-  // // 有搜索词，移除root节点
-  // if(searchKeyword.value.trim()){
-  //   return tree.filter(n => n.id !== 0)
-  // }  
-  return filterBomTree(bomData.value, searchKeyword.value)
+  //第一步：先做关键词搜索过滤
+  let afterSearch = filterBomTree(bomData.value, searchKeyword.value)
+  //第二步：再做类别过滤
+  let finalTree = filterBomByCate(afterSearch, activeCateFilter.value)
+  return finalTree
 })
 
+// 类别下拉数据源
+const cateOptionList =ref([
+  {cate:"Plastic",cateId:1, showCate:true},
+  {cate:"PCBA",cateId:2, showCate:true},
+  {cate:"Metal",cateId:3, showCate:true},
+  {cate:"Std",cateId:4, showCate:true},
+  {cate:"Semi-ASS",cateId:5, showCate:true},
+])
+//选择类别
+const handleSelectCate = (row, opt) => {
+  // console.log('父组件收到select-cate', row, opt)
+  row.cateName = opt.cate
+}
 
+// 从类别列表获取最大的 cateId
+const getMaxCateId = () => {
+  const arr = cateOptionList.value
+  if (!arr || arr.length === 0) return 0
+  return Math.max(...arr.map(item => item.cateId))
+}
 
+// 添加类别处理提交
+const handleAddCate = (row, text) => {
+  let newCid = Number(getMaxCateId() + 1)
+  // console.log('[[[[[[[NewID]]]]]]]==='+newCid)
+  const txt = text.trim()
+  if (!txt) return
+
+  const isExist = cateOptionList.value.some(item=> item.cate === txt)
+  if(isExist) return
+
+  const newItem = {
+    cate: txt,
+    cateId: newCid,
+    showCate:true
+  }
+  cateOptionList.value.push(newItem)
+
+  // 更新BOM树对应节点的类别名称
+  setNodeCate(bomData.value, row.id, txt)
+}
+
+// 根据id递归查找节点并修改节点对象的类别名称
+function setNodeCate(list, targetId, cateText) {
+  // console.log(list)
+  // console.log('targetId**********'+targetId+'-----------------'+cateText)
+  for(let item of list){
+    if(item.id === targetId){
+      item.cateName = cateText
+      return true
+    }
+    if(item.children) setNodeCate(item.children,targetId,cateText)
+  }
+}
 //*************BOM物料编号重复检测 */
 // 存放全部重复编号详情
 const repeatCodeList = ref([])
@@ -274,7 +442,7 @@ function checkRepeatCode(){
   //2.编号分组map
   const codeMap = new Map()
   allNode.forEach(node=>{
-    const num = node.label
+    const num = node.partCode
     if(!codeMap.has(num)){
       codeMap.set(num,[])
     }
@@ -320,7 +488,7 @@ const flattenBomTree = (nodes, level = 0, list = []) => {
       pid: node.parentId ?? '无',
       sn: node.sn,
       cateName: node.cateName,
-      name: indentSpace + node.label, // 名称自带缩进体现树形结构
+      name: indentSpace + node.partCode, // 名称自带缩进体现树形结构
       nameEn: node.nameEn,
       nameCn: node.nameCn,
       quantity: node.quantity,
@@ -473,7 +641,7 @@ const exportToTxt = () => {
  */
 const traverseAllSn = (nodes, snList = new Set(), duplicateList = []) => {
   nodes.forEach(node => {
-    const sn = node.label?.trim()
+    const sn = node.partCode?.trim()
     // 非空才校验
     if (sn) {
       if (snList.has(sn)) {
