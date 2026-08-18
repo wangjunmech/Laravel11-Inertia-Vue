@@ -1,5 +1,9 @@
 <template>
-  <div ref="containerRef" class="relative w-full">
+  <!-- resources\js\Components\DropDownSubMenu.vue -->
+  <div ref="containerRef"
+  @mouseleave="handleMenuLeave"
+   class="relative w-full "   
+   >
     <!-- mousedown 鼠标按下直接打开弹窗，不需要松开左键 -->
     <div
       class="dropdown-trigger cursor-pointer bg-red-400 w-full h-full flex items-center justify-center"
@@ -8,10 +12,12 @@
       <slot></slot>
     </div>
 
-    <!-- 外层一级弹窗，移除 overflow-hidden才能显示子菜单 -->
+    <!-- 外层一级弹窗，移除 overflow-hidden才能显示子菜单,使用style调整相对于按钮的上下左右位置 -->
     <div
       v-if="modelValue"      
       class="absolute z-[9999] top-full left-0 mt-1 min-w-[130px] bg-gray-200 border border-red-400 rounded-lg shadow-lg "
+      style="top: 16px; left: 15px;" 
+      
       @click.stop
     >
       <div
@@ -67,7 +73,10 @@ const togglePopup = () => {
   emit('update:modelValue', !props.modelValue)
   activeHoverKey.value = null
 }
-
+const handleMenuLeave = () => {
+  emit('update:modelValue', false)
+  activeHoverKey.value = null
+}
 const selectSub = (subItem) => {
   emit('select', subItem.key)
   emit('update:modelValue', false)
