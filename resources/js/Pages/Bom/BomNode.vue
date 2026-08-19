@@ -113,7 +113,7 @@
           <div class="flex cursor-pointer"           
             @click.stop="closeAllMenu();activeCateId = item.id"     
           >          
-          {{ item.id === 0 ? 0 : (item.cateName || "类别") }}
+          {{ item.id === 0 ? 0 : getCateLabel(item) }}
             <!-- {{ (item.id !== 0 && item.cateName) ? item.cateName : "类别" }} -->
           </div>
 
@@ -140,7 +140,7 @@
                       class="px-3 py-1 hover:bg-gray-100 cursor-pointer"
                       @click="$emit('select-cate', item, option);activeCateId = null"
                   >
-                      {{ option.cate }}
+                      {{ option.cateName }}
                   </div>
                   <!-- 点击唤起输入框 -->
                   <div
@@ -484,11 +484,27 @@ const highlightText = (text, keyword) => {
 }
 
 
+// 通过 cateId 获取类别名称
+const getCateLabel = (item) => {
+  if (item.cateName && item.cateName !== '类别') {
+    return item.cateName
+  }
+  if (item.cateId || item.cateId === 0) {
+    const found = props.cateOptionList.find(c => c.cateId === item.cateId)
+    if (found && found.cateName) {
+      return found.cateName
+    }
+  }
+  return '类别'
+}
 
-const chooseCate = (opt,rowItem)=>{
-  if(!rowItem) return
-  rowItem.cateName = opt.cate
+const chooseCate = (opt, rowItem) => {
+  if (!rowItem) return
+  rowItem.cateId = opt.cateId
+  rowItem.cateName = opt.cateName  // ✅ 使用 cateName
   activeCateId.value = null
+  // 触发更新
+  emit('update:bom-data', [...props.bomData])
 }
 // 点击页面任意地方关闭下拉
 // document.addEventListener("click",()=>openCate.value=false)
@@ -506,7 +522,7 @@ onUnmounted(() => {
   }
 })
 
-// const getRawTree = inject('getRawTree')
+const getRawTree = inject('getRawTree')
 
 
 // const rawTree = getRawTree()
@@ -519,9 +535,9 @@ if (props.level !== 0) {
   newCateText = inject('newCateText')
   inputRef = inject('inputRef')
   openAddInput = inject('openAddInput')
-  addNewCate = inject('addNewCate')
+  // addNewCate = inject('addNewCate')
  
-
+// getRawTree = inject('getRawTree')
 
   globalDraggingId = inject('globalDraggingId')
   globalDropTargetId = inject('globalDropTargetId')
@@ -698,14 +714,12 @@ if (props.level !== 0) {
 
   //类别处理
   provide('openAddInput', openAddInput)
-  provide('chooseCate', chooseCate)
-  provide('addNewCate', addNewCate)
+  // provide('chooseCate', chooseCate)
+  // provide('addNewCate', addNewCate)
   provide('activeCateId', activeCateId)
   provide('showCateInput', showCateInput)
   provide('newCateText', newCateText)
   provide('inputRef', inputRef)
-  // provide('cateOptionList', cateOptionList)
-
 
   provide('toggleItemMenu', toggleItemMenu)
   provide('closeItemMenu', closeItemMenu)
@@ -729,6 +743,7 @@ const getDefaultNode = (nodeId, nodeName, parentPid = null) => ({
   isEdit: true,
   isNew: true,
   editField: null,
+  cateId: 0,
   cateName:"类别",
   nameEn: 'part name',
   nameCn: '中文产品名',

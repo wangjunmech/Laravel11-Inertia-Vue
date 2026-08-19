@@ -51,16 +51,22 @@
 
         <!-- 类别筛选按钮及弹窗 -->
         <div>
-          <div @click="cateFilterControl" class="action-btn ml-4 px-3 py-1 bg-orange-200 hover:bg-slate-200 rounded-lg cursor-pointer">
-              类别筛选
-          </div>
+        <div  class="action-btn ml-4 px-3 py-1 bg-orange-200 hover:bg-slate-200 rounded-lg cursor-pointer">
+          <input type="checkbox"  @click="searchByCate" class="mr-2">
+          <label >
+           <span 
+           class="cursor-pointer"
+           @click="cateFilterControl"
+           >搜索类别</span> 
+          </label>
+        </div>
             <!-- 类别弹窗 -->
             <div v-if="cateFilterFlag" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click="cateFilterFlag=false">
               <div class="bg-white p-5 rounded-lg w-[280px]" @click.stop>
-                <h3 class="font-bold mb-3">勾选需要展示的类别</h3>
+                <h3 class="font-bold mb-3">勾选需要搜索的类别</h3>
                 <div v-for="(item) in cateOptionList" :key="item.cateId" class="flex gap-3 items-center my-2">
                   <input type="checkbox" v-model="item.showCate" >
-                  <span>{{item.cate}}</span>
+                  <span>{{item.cateName}}</span>
                 </div>
                 <div class="flex gap-3 mt-4">
                   <button @click="checkAllCate" class="px-3 py-1 bg-gray-300 rounded">全选</button>
@@ -264,7 +270,7 @@ const filterBomByCate = (tree, allowCateArr) => {
   return result
 }
 
-
+const searchByCate = () => {}
 const handleCateConfirm = () => {
 activeCateFilter.value = getCheckedCateList()
 cateFilterFlag.value = false
@@ -293,7 +299,7 @@ const getCheckedCateList = () => {
 }
 const activeCateSet = computed(()=>{
   return new Set(
-    cateOptionList.filter(opt => opt.showCate).map(opt => opt.cate)
+    cateOptionList.filter(opt => opt.showCate).map(opt => opt.cateName)
   )
 })
 const filteredBomData = computed(()=>{
@@ -366,16 +372,15 @@ const currentBomData = computed(() => {
 
 // 类别下拉数据源
 const cateOptionList =ref([
-  {cate:"Plastic",cateId:1, showCate:true},
-  {cate:"PCBA",cateId:2, showCate:true},
-  {cate:"Metal",cateId:3, showCate:true},
-  {cate:"Std",cateId:4, showCate:true},
-  {cate:"Semi-ASS",cateId:5, showCate:true},
+  {cateName:"Plastic",cateId:1, showCate:true},
+  {cateName:"PCBA",cateId:2, showCate:true},
+  {cateName:"Metal",cateId:3, showCate:true},
+  {cateName:"Std",cateId:4, showCate:true},
+  {cateName:"Semi-ASS",cateId:5, showCate:true},
 ])
 //选择类别
 const handleSelectCate = (row, opt) => {
-  // console.log('父组件收到select-cate', row, opt)
-  row.cateName = opt.cate
+  row.cateName = opt.cateName
 }
 
 // 从类别列表获取最大的 cateId
@@ -390,13 +395,20 @@ const handleAddCate = (row, text) => {
   let newCid = Number(getMaxCateId() + 1)
   // console.log('[[[[[[[NewID]]]]]]]==='+newCid)
   const txt = text.trim()
-  if (!txt) return
-
-  const isExist = cateOptionList.value.some(item=> item.cate === txt)
-  if(isExist) return
+  
+  const existingCate = cateOptionList.value.find(item => item.cateName === txt)
+  
+  if (existingCate) {
+    // ✅ 如果已存在，直接使用已有的类别
+    row.cateName = existingCate.cateName
+    row.cateId = existingCate.cateId
+    // 触发更新
+    updatebomData([...bomData.value])
+    return
+  }
 
   const newItem = {
-    cate: txt,
+    cateName: txt,
     cateId: newCid,
     showCate:true
   }
