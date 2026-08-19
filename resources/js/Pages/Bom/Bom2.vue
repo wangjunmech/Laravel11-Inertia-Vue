@@ -49,14 +49,13 @@
           >
         </div> 
 
-        <!-- 类别筛选按钮及弹窗 -->
+        <!-- 类别搜索按钮及弹窗 -->
         <div>
         <div  class="action-btn ml-4 px-3 py-1 bg-orange-200 hover:bg-slate-200 rounded-lg cursor-pointer">
-          <input type="checkbox"  @click="searchByCate" class="mr-2">
           <label >
            <span 
            class="cursor-pointer"
-           @click="cateFilterControl"
+           @click="cateFilterControl();searchByCate()"
            >搜索类别</span> 
           </label>
         </div>
@@ -240,6 +239,11 @@ const showFiledControl = ()=>{
 const cateFilterFlag = ref(false)
 const cateFilterControl = ()=>{
   cateFilterFlag.value = !cateFilterFlag.value
+    console.log('cateFilterControl***************')
+
+}
+const searchByCate = () => {
+  console.log('searchByCate***************')
 }
 
 //类别筛选动作开关
@@ -270,7 +274,6 @@ const filterBomByCate = (tree, allowCateArr) => {
   return result
 }
 
-const searchByCate = () => {}
 const handleCateConfirm = () => {
 activeCateFilter.value = getCheckedCateList()
 cateFilterFlag.value = false

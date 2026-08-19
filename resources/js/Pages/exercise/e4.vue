@@ -34,7 +34,17 @@
             :imageMaxSize="0.5"
             />
       </div>
-    
+    <hr>
+    <div>
+      <ImageSnippet             
+            :image=listings.image
+            :title='"title txt"'
+            :SizeLevel=4
+            :lock=0
+            :path="'exercise.storeImages'" 
+            :imageMaxSize="0.5"
+            />
+    </div>
   </div>
 </div>
 </template>
