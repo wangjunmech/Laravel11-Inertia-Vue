@@ -94,6 +94,34 @@
         </template>
       </div>
     </div>
+    <!-- 视图功能菜单 -->
+    <div>
+        <!-- 父flex：justify‑content‑center，让内部一整组居中 -->
+        <div class="flex justify-center  bg-slate-200">
+            <div class="w-1/6 bg-slate-400 m-1 cursor-pointer flex items-center gap-2 rounded-md">
+                <input
+                    type="color"
+                    v-model="bgColor"
+                    @input="updateBackgroundColor(bgColor)"
+                    class="m-1 w-8 h-8 rounded cursor-pointer border-0 flex-shrink-0"
+                />
+                <span>点击修改背景色</span>
+            </div>
+
+            <div class="w-1/6 bg-slate-400 m-1 cursor-pointer flex items-center gap-2 rounded-md">
+                <input
+                    type="checkbox"
+                    v-model="showGrid"
+                    @change="toggleGrid(showGrid)"
+                    class="m-2 cursor-pointer"
+                />
+                <span class="text-sm">网格显示</span>
+
+            </div>
+            <div class="w-1/6 bg-slate-400 m-1">dd</div>
+        </div>
+    </div>
+
   </div>
 </template>
 
@@ -104,20 +132,21 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 const viewerRef = ref(null)
 const fileInput = ref(null)
-
 const info = ref({
-  x: 0,
-  y: 0,
-  z: 0,
-  volume: 0,
-  faceCount: 0,
-  vertexCount: 0,
-  partCount: 0
+    x: 0,
+    y: 0,
+    z: 0,
+    volume: 0,
+    faceCount: 0,
+    vertexCount: 0,
+    partCount: 0
 })
 
 const loading = ref(false)
 const loadingProgress = ref('初始化引擎...')
 const isDragging = ref(false)
+const bgColor = ref('#f0f0f0') // 和 initThree() 里默认背景色保持一致
+const showGrid = ref(true) // 默认显示网格
 const modelLoaded = ref(false)
 const currentFileName = ref('')
 const currentFileExt = ref('')
@@ -126,7 +155,17 @@ const currentFileExt = ref('')
 let scene, camera, renderer, controls
 let currentGroup = null
 let occtInstance = null
+let gridHelper = null 
 
+function updateBackgroundColor(colorHex) {
+    console.log('Color*******')
+  if (!scene) return
+  scene.background = new THREE.Color(colorHex)
+}
+function toggleGrid(visible) {
+  if (!gridHelper) return
+  gridHelper.visible = visible
+}
 // ---------------- occt-import-js 初始化（使用 CDN） ----------------
 async function loadOcctFromCDN() {
   return new Promise((resolve, reject) => {
@@ -204,7 +243,7 @@ function initThree() {
   backLight.position.set(-50, -100, -150)
   scene.add(backLight)
 
-  const gridHelper = new THREE.GridHelper(200, 20, 0x888888, 0x444444)
+  gridHelper = new THREE.GridHelper(200, 20, 0x888888, 0x444444)
   gridHelper.position.y = -0.01
   scene.add(gridHelper)
 
