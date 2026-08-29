@@ -4,7 +4,7 @@
     <div class="grid grid-cols-[1fr_2fr_1fr] gap-2">
       <!-- 左侧拖拽区 -->
       <div
-        class="h-60 bg-slate-300 rounded-xl p-2 flex flex-col items-center justify-center border-2 border-dashed border-slate-400 cursor-pointer transition-colors"
+        class="h-96 bg-slate-300 rounded-xl p-2 flex flex-col items-center justify-center border-2 border-dashed border-slate-400 cursor-pointer transition-colors"
         :class="{ 'bg-blue-100 border-blue-500': isDragging }"
         @dragover.prevent="handleDragOver"
         @dragenter="isDragging = true"
@@ -36,7 +36,7 @@
       </div>
 
       <!-- 中间ThreeJS视图容器 -->
-      <div ref="viewerRef" class="h-60 bg-slate-300 rounded-xl overflow-hidden relative">
+      <div ref="viewerRef" class="h-96 bg-slate-300 rounded-xl overflow-hidden relative">
         <div 
           v-if="loading" 
           class="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-sm"
@@ -49,7 +49,7 @@
       </div>
 
       <!-- 右侧信息面板 -->
-      <div class="h-60 bg-slate-300 rounded-xl p-2 overflow-auto">
+      <div class="h-96 bg-slate-300 rounded-xl p-2 overflow-auto">
         <div class="font-medium mb-2">📊 模型信息</div>
         <div v-if="!modelLoaded" class="text-gray-500 text-sm">
           暂无模型数据
