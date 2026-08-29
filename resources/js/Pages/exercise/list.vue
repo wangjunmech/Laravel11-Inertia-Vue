@@ -176,8 +176,23 @@ const goTo = (path) => {
         </button>
       </div>
       <div class="item">
-        <button @click="goTo('e26')">
-          27--input输入过滤
+        <button @click="goTo('e27')">
+          27--input输入过滤,过滤特殊字符
+        </button>
+      </div>
+      <div class="item">
+        <button @click="goTo('e28')">
+          28--自定义文本提取器
+        </button>
+      </div>
+      <div class="item">
+        <button @click="goTo('e29')">
+          29--Test
+        </button>
+      </div>
+      <div class="item">
+        <button @click="goTo('e30')">
+          30--ThreeJS
         </button>
       </div>
 
