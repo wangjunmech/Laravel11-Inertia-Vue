@@ -187,7 +187,7 @@ const goTo = (path) => {
       </div>
       <div class="item">
         <button @click="goTo('e29')">
-          29--Test
+          29--3D图形实时预览器--卡板堆放箱子预览
         </button>
       </div>
       <div class="item">
