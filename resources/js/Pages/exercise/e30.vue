@@ -98,27 +98,40 @@
     <div>
         <!-- 父flex：justify‑content‑center，让内部一整组居中 -->
         <div class="flex justify-center  bg-slate-200">
-            <div class="w-1/6 bg-slate-400 m-1 cursor-pointer flex items-center gap-2 rounded-md">
+            <div class="w-24 bg-slate-400 m-1 cursor-pointer flex items-center gap-2 rounded-md">
                 <input
                     type="color"
                     v-model="bgColor"
                     @input="updateBackgroundColor(bgColor)"
-                    class="m-1 w-8 h-8 rounded cursor-pointer border-0 flex-shrink-0"
+                    class="m-1 w-1/4 h-8 rounded cursor-pointer border-0 flex-shrink-0"
                 />
-                <span>点击修改背景色</span>
+                <span>背景色</span>
+            </div>
+            <div class="w-24 bg-slate-400 m-1 cursor-pointer flex items-center gap-2 rounded-md">
+                <input
+                    type="color"
+                    v-model="pColor"
+                    @input="updatePartColor(pColor)"
+                    class="m-1 w-1/4 h-8 rounded cursor-pointer border-0 flex-shrink-0"
+                />
+                <span>产品色</span>
             </div>
 
-            <div class="w-1/6 bg-slate-400 m-1 cursor-pointer flex items-center gap-2 rounded-md">
+            <div class="w-28 bg-slate-400 m-1 cursor-pointer flex items-center gap-2 rounded-md">
                 <input
                     type="checkbox"
                     v-model="showGrid"
                     @change="toggleGrid(showGrid)"
                     class="m-2 cursor-pointer"
                 />
-                <span class="text-sm">网格显示</span>
+                <span>网格显示</span>
 
             </div>
-            <div class="w-1/6 bg-slate-400 m-1">dd</div>
+            <div 
+            @click=setInitView
+            class="w-24 bg-slate-400 m-1 cursor-pointer flex items-center gap-2 rounded-md justify-center">
+                默认视图
+            </div>
         </div>
     </div>
 
@@ -128,8 +141,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import * as THREE from 'three'
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-
+// import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { TrackballControls } from 'three/addons/controls/TrackballControls.js'
 const viewerRef = ref(null)
 const fileInput = ref(null)
 const info = ref({
@@ -146,6 +159,7 @@ const loading = ref(false)
 const loadingProgress = ref('初始化引擎...')
 const isDragging = ref(false)
 const bgColor = ref('#f0f0f0') // 和 initThree() 里默认背景色保持一致
+const pColor = ref(null)
 const showGrid = ref(true) // 默认显示网格
 const modelLoaded = ref(false)
 const currentFileName = ref('')
@@ -156,15 +170,42 @@ let scene, camera, renderer, controls
 let currentGroup = null
 let occtInstance = null
 let gridHelper = null 
+let initialCameraPosition = new THREE.Vector3(100, 80, 120) // 默认值，和 initThree() 里初始设置一致
+let initialControlsTarget = new THREE.Vector3(0, 0, 0)
 
+//背景颜色
 function updateBackgroundColor(colorHex) {
     console.log('Color*******')
   if (!scene) return
   scene.background = new THREE.Color(colorHex)
 }
+// 3D图形颜色 
+function updatePartColor(colorHex) {
+  if (!currentGroup) return
+  
+  currentGroup.traverse((child) => {
+    if (child.isMesh) {
+      if (Array.isArray(child.material)) {
+        child.material.forEach(m => m.color.set(colorHex))
+      } else {
+        child.material.color.set(colorHex)
+      }
+    }
+  })
+}
+//网格显示
 function toggleGrid(visible) {
   if (!gridHelper) return
   gridHelper.visible = visible
+}
+//恢复初始视图
+function setInitView() {
+  if (!camera || !controls) return
+  
+  camera.position.copy(initialCameraPosition)
+  controls.target.copy(initialControlsTarget)
+  camera.updateProjectionMatrix()
+  controls.update()
 }
 // ---------------- occt-import-js 初始化（使用 CDN） ----------------
 async function loadOcctFromCDN() {
@@ -247,11 +288,16 @@ function initThree() {
   gridHelper.position.y = -0.01
   scene.add(gridHelper)
 
-  controls = new OrbitControls(camera, renderer.domElement)
-  controls.enableDamping = true
-  controls.dampingFactor = 0.08
-  controls.target.set(0, 0, 0)
-  controls.update()
+controls = new TrackballControls(camera, renderer.domElement)
+controls.rotateSpeed = 3.0      // 旋转速度，可按手感调整
+controls.zoomSpeed = 1.2
+controls.panSpeed = 0.8
+controls.noZoom = false
+controls.noPan = false
+controls.staticMoving = false   // false 表示有惯性阻尼；true 则立即停止
+controls.dynamicDampingFactor = 0.1
+controls.target.set(0, 0, 0)
+controls.update()
 
   animate()
 }
@@ -270,7 +316,8 @@ function resizeHandler() {
   
   camera.aspect = w / h
   camera.updateProjectionMatrix()
-  renderer.setSize(w, h)
+    renderer.setSize(w, h)
+  controls.handleResize()
 }
 
 // ---------------- 清理模型 ----------------
@@ -603,14 +650,22 @@ async function loadModelFromFile(file) {
     currentFileExt.value = ext
     modelLoaded.value = true
     
-    // 15. 调整视角
-    const maxDim = Math.max(size.x, size.y, size.z)
-    if (maxDim > 0 && isFinite(maxDim)) {
-      const distance = maxDim * 1.8 + 50
-      camera.position.set(distance * 0.6, distance * 0.6, distance * 0.8)
-      controls.target.set(0, 0, 0)
-      controls.update()
-    }
+// 15. 调整视角
+const maxDim = Math.max(size.x, size.y, size.z)
+if (maxDim > 0 && isFinite(maxDim)) {
+  const distance = maxDim * 1.8 + 50
+  const camX = distance * 0.6
+  const camY = distance * 0.6
+  const camZ = distance * 0.8
+  
+  camera.position.set(camX, camY, camZ)
+  controls.target.set(0, 0, 0)
+  controls.update()
+  
+  // 记录下来，供"回到初始视图"按钮使用
+  initialCameraPosition.set(camX, camY, camZ)
+  initialControlsTarget.set(0, 0, 0)
+}
     
     console.log(`✅ 模型加载成功: ${file.name}`)
     console.log(`   - 零件数: ${validMeshCount}`)
