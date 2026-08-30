@@ -1,6 +1,6 @@
 <template>
   <div class="p-4">
-    <div class="text-lg font-medium mb-3">ThreeJS 3D文件读取器</div>
+    <div class="text-lg font-medium mb-3">ThreeJS 3D文件查看器</div>
     <div class="h-[70vh] grid grid-cols-[1fr_2fr_1fr] gap-1">
       <!-- 左侧拖拽区 -->
       <div
@@ -172,7 +172,6 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import * as THREE from 'three'
 // import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { TrackballControls } from 'three/addons/controls/TrackballControls.js'
-import CubeViewIcon from '../../Components/CubeViewIcon.vue'
 
 const viewerRef = ref(null)
 const fileInput = ref(null)
@@ -341,7 +340,7 @@ function setViewDirection(direction) {
   
   showViewMenu.value = false // 选完自动收起菜单
 }
-// ---------------- occt-import-js 初始化（使用 CDN） ----------------
+// ---------------- occt-import-js 初始化 ----------------
 async function loadOcctFromCDN() {
   return new Promise((resolve, reject) => {
     if (window.occtimportjs) {
@@ -350,7 +349,9 @@ async function loadOcctFromCDN() {
     }
     
     const script = document.createElement('script')
-    script.src = 'https://cdn.jsdelivr.net/npm/occt-import-js@0.0.11/dist/occt-import-js.js'
+    // script.src = 'https://cdn.jsdelivr.net/npm/occt-import-js@0.0.11/dist/occt-import-js.js'
+    script.src = '/occt-import-js/occt-import-js.js'
+    /**注意使用本地occt-import-js需要先npm安装，然后把dist目录复制到public目录下并改名为occt-import-js目录，注意改名时中杠横线输入错误也是不行的 */
     script.onload = () => {
       if (window.occtimportjs) {
         resolve(window.occtimportjs)
@@ -359,7 +360,7 @@ async function loadOcctFromCDN() {
       }
     }
     script.onerror = () => {
-      reject(new Error('CDN 加载失败，请检查网络连接'))
+      reject(new Error('CDN 加载或本地加载occt-import-js失败，请检查网络连接或本地是否存在occt-import-js.js'))
     }
     document.head.appendChild(script)
   })
