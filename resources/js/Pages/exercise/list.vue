@@ -182,7 +182,7 @@ const goTo = (path) => {
       </div>
       <div class="item">
         <button @click="goTo('e28')">
-          28--自定义文本提取器
+          28--3D-Tool : Model Info自定义文本提取器
         </button>
       </div>
       <div class="item">
@@ -192,7 +192,7 @@ const goTo = (path) => {
       </div>
       <div class="item">
         <button @click="goTo('e30')">
-          30--ThreeJS
+          30--ThreeJS读取3D图形
         </button>
       </div>
 

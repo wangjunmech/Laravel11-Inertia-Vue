@@ -1,10 +1,10 @@
 <template>
   <div class="p-4">
     <div class="text-lg font-medium mb-3">ThreeJS 3D文件读取器</div>
-    <div class="grid grid-cols-[1fr_2fr_1fr] gap-2">
+    <div class="h-[70vh] grid grid-cols-[1fr_2fr_1fr] gap-1">
       <!-- 左侧拖拽区 -->
       <div
-        class="h-96 bg-slate-300 rounded-xl p-2 flex flex-col items-center justify-center border-2 border-dashed border-slate-400 cursor-pointer transition-colors"
+        class="bg-slate-300 rounded-xl p-2 flex flex-col items-center justify-center border-2 border-dashed border-slate-400 cursor-pointer transition-colors"
         :class="{ 'bg-blue-100 border-blue-500': isDragging }"
         @dragover.prevent="handleDragOver"
         @dragenter="isDragging = true"
@@ -36,7 +36,7 @@
       </div>
 
       <!-- 中间ThreeJS视图容器 -->
-      <div ref="viewerRef" class="h-96 bg-slate-300 rounded-xl overflow-hidden relative">
+      <div ref="viewerRef" class="bg-slate-300 rounded-xl overflow-hidden relative">
         <div 
           v-if="loading" 
           class="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-sm"
@@ -49,7 +49,7 @@
       </div>
 
       <!-- 右侧信息面板 -->
-      <div class="h-96 bg-slate-300 rounded-xl p-2 overflow-auto">
+      <div class="bg-slate-300 rounded-xl p-2 overflow-auto">
         <div class="font-medium mb-2">📊 模型信息</div>
         <div v-if="!modelLoaded" class="text-gray-500 text-sm">
           暂无模型数据
@@ -79,17 +79,26 @@
             </div>
             <hr class="my-2" />
             <div class="flex justify-between">
+              <span class="text-gray-600">轮廓体积（L*W*H）：</span>
+              <span>{{info.volume}} cm³</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600">实体体积：</span>
+              <span>{{info.realVolume}} cm³</span>
+            </div>
+            <div class="flex justify-between">
               <span class="text-gray-600">三角面片：</span>
-              <span>{{ info.faceCount.toLocaleString() }}</span>
+              <span>{{ info.faceCount.toLocaleString() }} </span>
             </div>
             <div class="flex justify-between">
               <span class="text-gray-600">顶点数：</span>
-              <span>{{ info.vertexCount.toLocaleString() }}</span>
+              <span>{{ info.vertexCount.toLocaleString() }} </span>
             </div>
             <div class="flex justify-between">
               <span class="text-gray-600">零部件：</span>
               <span>{{ info.partCount }}</span>
             </div>
+            <div class="flex w-24 p-2 cursor-pointer bg-red-300 hover:bg-blue-300 rounded-full" @click="copyInfo">📋复制信息</div>
           </div>
         </template>
       </div>
@@ -97,7 +106,7 @@
     <!-- 视图功能菜单 -->
     <div>
         <!-- 父flex：justify‑content‑center，让内部一整组居中 -->
-        <div class="flex justify-center  bg-slate-200">
+        <div class="flex justify-center rounded-lg mt-2 bg-slate-200">
             <div class="w-24 bg-slate-400 m-1 cursor-pointer flex items-center gap-2 rounded-md">
                 <input
                     type="color"
@@ -132,7 +141,27 @@
             class="w-24 bg-slate-400 m-1 cursor-pointer flex items-center gap-2 rounded-md justify-center">
                 默认视图
             </div>
+            <div 
+              @click="showViewMenu = !showViewMenu"
+              class="w-24 bg-slate-400 m-1 cursor-pointer flex items-center gap-2 rounded-md justify-center relative">
+                🧊视图方向
+                
+                <!-- 下拉菜单 -->
+                <div 
+                  v-if="showViewMenu"
+                  class="absolute bottom-full left-0 mb-1 bg-blue-200 rounded-md shadow-lg z-20 w-24 py-1"
+                >
+                <!-- 视图方向的菜单改为向上弹出:只需要改下拉菜单那个 div 的定位 class，把 top-full 改成 bottom-full，mt-1 改成 mb-1： -->
+                  <div class="px-1 py-1 hover:bg-slate-100 cursor-pointer text-sm" @click.stop="setViewDirection('top')">俯视 Top</div>
+                  <div class="px-1 py-1 hover:bg-slate-100 cursor-pointer text-sm" @click.stop="setViewDirection('bottom')">仰视 Bottom</div>
+                  <div class="px-1 py-1 hover:bg-slate-100 cursor-pointer text-sm" @click.stop="setViewDirection('front')">前视 Front</div>
+                  <div class="px-1 py-1 hover:bg-slate-100 cursor-pointer text-sm" @click.stop="setViewDirection('back')">后视 Back</div>
+                  <div class="px-1 py-1 hover:bg-slate-100 cursor-pointer text-sm" @click.stop="setViewDirection('left')">左视 Left</div>
+                  <div class="px-1 py-1 hover:bg-slate-100 cursor-pointer text-sm" @click.stop="setViewDirection('right')">右视 Right</div>
+                </div>
+            </div>
         </div>
+        <hr>
     </div>
 
   </div>
@@ -143,6 +172,8 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import * as THREE from 'three'
 // import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { TrackballControls } from 'three/addons/controls/TrackballControls.js'
+import CubeViewIcon from '../../Components/CubeViewIcon.vue'
+
 const viewerRef = ref(null)
 const fileInput = ref(null)
 const info = ref({
@@ -150,6 +181,7 @@ const info = ref({
     y: 0,
     z: 0,
     volume: 0,
+    realVolume: 0,
     faceCount: 0,
     vertexCount: 0,
     partCount: 0
@@ -161,6 +193,8 @@ const isDragging = ref(false)
 const bgColor = ref('#f0f0f0') // 和 initThree() 里默认背景色保持一致
 const pColor = ref(null)
 const showGrid = ref(true) // 默认显示网格
+const showViewMenu = ref(false) // 控制"视图方向"下拉菜单显示/隐藏
+let currentViewDistance = 300 // 默认值，模型加载后会更新
 const modelLoaded = ref(false)
 const currentFileName = ref('')
 const currentFileExt = ref('')
@@ -170,9 +204,44 @@ let scene, camera, renderer, controls
 let currentGroup = null
 let occtInstance = null
 let gridHelper = null 
+let frustumSize = 300 // 决定正交相机能看到的世界宽度/高度，模型加载后会自动调整
 let initialCameraPosition = new THREE.Vector3(100, 80, 120) // 默认值，和 initThree() 里初始设置一致
 let initialControlsTarget = new THREE.Vector3(0, 0, 0)
 
+/**
+ * 复制文本到剪贴板
+ * @param {string} text
+ */
+async function copyToClipboard(text) {
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    console.log("✅已复制剪贴板：", text)
+  } catch (err) {
+    console.error("❌复制失败", err)
+  }
+}
+function copyInfo() {
+  if (!modelLoaded.value) {
+    console.warn('⚠️ 尚未加载模型，无信息可复制')
+    return
+  }
+
+  const text = [
+    `文件名：${currentFileName.value}`,
+    `格式：${currentFileExt.value.toUpperCase()}`,
+    `X 尺寸：${info.value.x.toFixed(2)} mm`,
+    `Y 尺寸：${info.value.y.toFixed(2)} mm`,
+    `Z 尺寸：${info.value.z.toFixed(2)} mm`,
+    `轮廓体积（L*W*H）：${(info.value.volume)} cm³`,
+    `实体体积：${(info.value.realVolume)} cm³`,
+    `三角面片：${Math.round(info.value.faceCount).toLocaleString()}`,
+    `顶点数：${info.value.vertexCount.toLocaleString()}`,
+    `零部件：${info.value.partCount}`
+  ].join('\n')
+
+  copyToClipboard(text)
+}
 //背景颜色
 function updateBackgroundColor(colorHex) {
     console.log('Color*******')
@@ -206,6 +275,71 @@ function setInitView() {
   controls.target.copy(initialControlsTarget)
   camera.updateProjectionMatrix()
   controls.update()
+}
+
+//计算网格体积
+function computeMeshVolume(geometry) {
+  const posAttr = geometry.attributes.position
+  const index = geometry.index
+  
+  let volume = 0
+  
+  const getTriangleVolume = (p1, p2, p3) => {
+    // 有符号四面体体积（原点到三角形）
+    return p1.dot(p2.clone().cross(p3)) / 6.0
+  }
+  
+  const v1 = new THREE.Vector3()
+  const v2 = new THREE.Vector3()
+  const v3 = new THREE.Vector3()
+  
+  if (index) {
+    for (let i = 0; i < index.count; i += 3) {
+      const a = index.getX(i)
+      const b = index.getX(i + 1)
+      const c = index.getX(i + 2)
+      v1.fromBufferAttribute(posAttr, a)
+      v2.fromBufferAttribute(posAttr, b)
+      v3.fromBufferAttribute(posAttr, c)
+      volume += getTriangleVolume(v1, v2, v3)
+    }
+  } else {
+    for (let i = 0; i < posAttr.count; i += 3) {
+      v1.fromBufferAttribute(posAttr, i)
+      v2.fromBufferAttribute(posAttr, i + 1)
+      v3.fromBufferAttribute(posAttr, i + 2)
+      volume += getTriangleVolume(v1, v2, v3)
+    }
+  }
+  
+  return Math.abs(volume)
+}
+
+//设置视图方向
+function setViewDirection(direction) {
+  if (!camera || !controls) return
+  
+  const distance = currentViewDistance
+  const target = controls.target.clone() // 保持当前观察目标点不变（一般是模型中心 0,0,0）
+  
+  const positions = {
+    top:    { x: 0, y: distance, z: 0.0001 }, // z 给个极小偏移，避免 lookAt 时和 up 向量共线导致画面异常
+    bottom: { x: 0, y: -distance, z: 0.0001 },
+    front:  { x: 0, y: 0, z: distance },
+    back:   { x: 0, y: 0, z: -distance },
+    left:   { x: -distance, y: 0, z: 0 },
+    right:  { x: distance, y: 0, z: 0 }
+  }
+  
+  const pos = positions[direction]
+  if (!pos) return
+  
+  camera.position.set(target.x + pos.x, target.y + pos.y, target.z + pos.z)
+  camera.up.set(0, 1, 0) // 重置上方向，避免之前 Trackball 自由旋转后视角"歪"了
+  camera.lookAt(target)
+  controls.update()
+  
+  showViewMenu.value = false // 选完自动收起菜单
 }
 // ---------------- occt-import-js 初始化（使用 CDN） ----------------
 async function loadOcctFromCDN() {
@@ -257,7 +391,15 @@ function initThree() {
   scene = new THREE.Scene()
   scene.background = new THREE.Color(0xf0f0f0)
 
-  camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 10000)
+  const aspect = width / height
+  camera = new THREE.OrthographicCamera(
+    (frustumSize * aspect) / -2,
+    (frustumSize * aspect) / 2,
+    frustumSize / 2,
+    frustumSize / -2,
+    0.1,
+    10000
+  )
   camera.position.set(100, 80, 120)
   camera.lookAt(0, 0, 0)
 
@@ -314,12 +456,16 @@ function resizeHandler() {
   const h = viewerRef.value.clientHeight
   if (w === 0 || h === 0) return
   
-  camera.aspect = w / h
+  const aspect = w / h
+  camera.left = (frustumSize * aspect) / -2
+  camera.right = (frustumSize * aspect) / 2
+  camera.top = frustumSize / 2
+  camera.bottom = frustumSize / -2
   camera.updateProjectionMatrix()
-    renderer.setSize(w, h)
+  
+  renderer.setSize(w, h)
   controls.handleResize()
 }
-
 // ---------------- 清理模型 ----------------
 function clearModel() {
   if (currentGroup) {
@@ -343,7 +489,7 @@ function clearModel() {
   currentFileName.value = ''
   currentFileExt.value = ''
   info.value = {
-    x: 0, y: 0, z: 0, volume: 0, 
+    x: 0, y: 0, z: 0, volume: 0, realVolume: 0,
     faceCount: 0, vertexCount: 0, partCount: 0
   }
 }
@@ -508,7 +654,7 @@ async function loadModelFromFile(file) {
     let totalFaces = 0
     let totalVertices = 0
     let validMeshCount = 0
-    
+    let totalVolume = 0
     // 10. 遍历所有网格
     meshes.forEach((meshData, index) => {
   let positions = null
@@ -587,6 +733,8 @@ async function loadModelFromFile(file) {
         } else {
           totalFaces += vertexCount / 3
         }
+        // 累加网格体积
+        totalVolume += computeMeshVolume(geometry)
         
         // 材质
         const color = getRandomColor()
@@ -640,7 +788,9 @@ async function loadModelFromFile(file) {
       x: size.x,
       y: size.y,
       z: size.z,
-      volume: size.x * size.y * size.z * 0.5,
+      
+      volume: (size.x * size.y * size.z/1000).toFixed(1),  // 轮廓体积：包围盒估算
+      realVolume: (totalVolume/1000).toFixed(1),           // 体积：真实网格体积
       faceCount: Math.round(totalFaces),
       vertexCount: totalVertices,
       partCount: validMeshCount
@@ -653,7 +803,20 @@ async function loadModelFromFile(file) {
 // 15. 调整视角
 const maxDim = Math.max(size.x, size.y, size.z)
 if (maxDim > 0 && isFinite(maxDim)) {
-  const distance = maxDim * 1.8 + 50
+  // 正交相机：用 frustumSize 控制模型占屏幕的比例，留一些边距（*1.5）
+  frustumSize = maxDim * 1.5
+  
+  const aspect = camera.right !== camera.left 
+    ? (camera.right - camera.left) / (camera.top - camera.bottom) 
+    : 1
+  camera.left = (frustumSize * aspect) / -2
+  camera.right = (frustumSize * aspect) / 2
+  camera.top = frustumSize / 2
+  camera.bottom = frustumSize / -2
+  camera.updateProjectionMatrix()
+  
+  // 相机位置只需要保证在 near/far 范围内、且方向合适即可，距离数值本身不影响大小
+  const distance = maxDim * 3 + 100
   const camX = distance * 0.6
   const camY = distance * 0.6
   const camZ = distance * 0.8
@@ -662,9 +825,9 @@ if (maxDim > 0 && isFinite(maxDim)) {
   controls.target.set(0, 0, 0)
   controls.update()
   
-  // 记录下来，供"回到初始视图"按钮使用
   initialCameraPosition.set(camX, camY, camZ)
   initialControlsTarget.set(0, 0, 0)
+  currentViewDistance = distance
 }
     
     console.log(`✅ 模型加载成功: ${file.name}`)
