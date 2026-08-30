@@ -98,7 +98,22 @@
               <span class="text-gray-600">零部件：</span>
               <span>{{ info.partCount }}</span>
             </div>
-            <div class="flex w-24 p-2 cursor-pointer bg-red-300 hover:bg-blue-300 rounded-full" @click="copyInfo">📋复制信息</div>
+              <div v-if="selectedFaceInfo" class="mt-2 pt-2 border-t border-slate-400">
+                <div class="font-medium mb-1 text-yellow-700">🔶 选中曲面</div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">所属零件：</span>
+                  <span>{{ selectedFaceInfo.partName }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">曲面序号：</span>
+                  <span>{{ selectedFaceInfo.faceIndex }} / {{ selectedFaceInfo.totalFaces }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">三角面片数：</span>
+                  <span>{{ selectedFaceInfo.triangleCount }}</span>
+                </div>
+              </div>
+            <div class="flex w-24 p-2 cursor-pointer bg-red-300 hover:bg-blue-300 rounded-full" @click="copyInfo">📋复制信息</div><div v-if="showCopyTip" class="animate-blink bg-yellow-200 m-6 rounded-lg p-2">✅️已复制 !</div>
           </div>
         </template>
       </div>
@@ -193,16 +208,21 @@ const bgColor = ref('#f0f0f0') // 和 initThree() 里默认背景色保持一致
 const pColor = ref(null)
 const showGrid = ref(true) // 默认显示网格
 const showViewMenu = ref(false) // 控制"视图方向"下拉菜单显示/隐藏
+const selectedFaceInfo = ref(null) // 当前选中曲面的信息，用于面板显示
 let currentViewDistance = 300 // 默认值，模型加载后会更新
 const modelLoaded = ref(false)
 const currentFileName = ref('')
 const currentFileExt = ref('')
-
+const showCopyTip = ref(false)
+let copyTipTimer = null // 保存定时器引用，防止重复点击时计时器冲突
 // ThreeJS 相关变量
 let scene, camera, renderer, controls
 let currentGroup = null
 let occtInstance = null
 let gridHelper = null 
+const raycaster = new THREE.Raycaster()
+const mouseNDC = new THREE.Vector2()
+let selectedFaceMesh = null // 当前高亮曲面的覆盖网格
 let frustumSize = 300 // 决定正交相机能看到的世界宽度/高度，模型加载后会自动调整
 let initialCameraPosition = new THREE.Vector3(100, 80, 120) // 默认值，和 initThree() 里初始设置一致
 let initialControlsTarget = new THREE.Vector3(0, 0, 0)
@@ -216,6 +236,16 @@ async function copyToClipboard(text) {
   try {
     await navigator.clipboard.writeText(text)
     console.log("✅已复制剪贴板：", text)
+    showCopyTip.value = true
+
+    // 如果之前的计时器还没到时间，先清掉，避免连续点击时提前消失
+    if (copyTipTimer) {
+      clearTimeout(copyTipTimer)
+    }
+    copyTipTimer = setTimeout(() => {
+      showCopyTip.value = false
+      copyTipTimer = null
+    }, 3000)
   } catch (err) {
     console.error("❌复制失败", err)
   }
@@ -339,6 +369,107 @@ function setViewDirection(direction) {
   controls.update()
   
   showViewMenu.value = false // 选完自动收起菜单
+}
+
+//曲面选择
+function onCanvasClick(event) {
+  if (!currentGroup || !camera || !renderer) return
+
+  const rect = renderer.domElement.getBoundingClientRect()
+  mouseNDC.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+  mouseNDC.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+
+  raycaster.setFromCamera(mouseNDC, camera)
+
+  // 只拾取真实零件网格，排除边线(LineSegments)和已有的高亮覆盖层
+  const pickables = []
+  currentGroup.traverse((child) => {
+    if (child.isMesh && child !== selectedFaceMesh) {
+      pickables.push(child)
+    }
+  })
+
+  const intersects = raycaster.intersectObjects(pickables, false)
+
+  if (intersects.length === 0) {
+    clearFaceSelection()
+    return
+  }
+
+  const hit = intersects[0]
+  const mesh = hit.object
+  const triangleIndex = hit.faceIndex // Three.js 返回的三角形序号
+  const brepFaces = mesh.userData.brepFaces
+
+  if (!brepFaces || brepFaces.length === 0) {
+    console.warn('该零件无曲面拓扑数据，无法精确选择单个曲面')
+    clearFaceSelection()
+    return
+  }
+
+  // 根据三角形序号反查所属曲面区间
+  let faceRangeStart = 0
+  let faceRangeEnd = (mesh.geometry.index.count / 3) - 1
+  let faceIdx = -1
+
+  for (let i = 0; i < brepFaces.length; i++) {
+    const start = brepFaces[i].first
+    const end = i + 1 < brepFaces.length ? brepFaces[i + 1].first - 1 : faceRangeEnd
+    if (triangleIndex >= start && triangleIndex <= end) {
+      faceRangeStart = start
+      faceRangeEnd = end
+      faceIdx = i
+      break
+    }
+  }
+
+  if (faceIdx === -1) return
+
+  highlightFace(mesh, faceRangeStart, faceRangeEnd)
+
+  selectedFaceInfo.value = {
+    partName: mesh.userData.partName,
+    faceIndex: faceIdx + 1,
+    totalFaces: brepFaces.length,
+    triangleCount: faceRangeEnd - faceRangeStart + 1
+  }
+}
+//清除高亮曲面
+function clearFaceSelection() {
+  if (selectedFaceMesh) {
+    selectedFaceMesh.geometry.dispose()
+    selectedFaceMesh.material.dispose()
+    selectedFaceMesh.parent?.remove(selectedFaceMesh)
+    selectedFaceMesh = null
+  }
+  selectedFaceInfo.value = null
+}
+//高亮曲面
+function highlightFace(mesh, triStart, triEnd) {
+  clearFaceSelection()
+
+  const sourceGeom = mesh.geometry
+  const sourceIndexArr = sourceGeom.index.array
+  const subIndices = sourceIndexArr.slice(triStart * 3, (triEnd + 1) * 3)
+
+  const highlightGeom = new THREE.BufferGeometry()
+  highlightGeom.setAttribute('position', sourceGeom.attributes.position) // 共用顶点数据
+  highlightGeom.setIndex(new THREE.BufferAttribute(new Uint32Array(subIndices), 1))
+  highlightGeom.computeVertexNormals()
+
+  const highlightMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffff00,
+    transparent: true,
+    opacity: 0.6,
+    side: THREE.DoubleSide,
+    depthTest: true,
+    polygonOffset: true,      // 避免和原表面 z-fighting 闪烁
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1
+  })
+
+  selectedFaceMesh = new THREE.Mesh(highlightGeom, highlightMaterial)
+  mesh.add(selectedFaceMesh) // 挂在原 mesh 下面，跟随其一起变换
 }
 // ---------------- occt-import-js 初始化 ----------------
 async function loadOcctFromCDN() {
@@ -469,6 +600,7 @@ function resizeHandler() {
 }
 // ---------------- 清理模型 ----------------
 function clearModel() {
+  clearFaceSelection()
   if (currentGroup) {
     currentGroup.traverse((child) => {
       if (child.isMesh) {
@@ -750,7 +882,8 @@ async function loadModelFromFile(file) {
         const mesh = new THREE.Mesh(geometry, material)
         mesh.castShadow = true
         mesh.receiveShadow = true
-        
+        mesh.userData.brepFaces = meshData.brep_faces || null
+        mesh.userData.partName = meshData.name || `零件${index + 1}`
           group.add(mesh)
                 // 添加黑色边线
             const edgesGeometry = new THREE.EdgesGeometry(geometry, 15) // 第二个参数是角度阈值(度),超过这个角度才算"边"
@@ -911,7 +1044,7 @@ onMounted(async () => {
   await nextTick()
   initThree()
   window.addEventListener('resize', resizeHandler)
-  
+  renderer.domElement.addEventListener('click', onCanvasClick)
   try {
     await initOcct()
     console.log('✅ 3D 引擎已预加载')
@@ -922,6 +1055,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', resizeHandler)
+  renderer?.domElement.removeEventListener('click', onCanvasClick)
   clearModel()
   if (renderer) {
     renderer.dispose()
