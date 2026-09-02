@@ -195,6 +195,16 @@ const goTo = (path) => {
           30--ThreeJS读取3D图形
         </button>
       </div>
+      <div class="item">
+        <button @click="goTo('e31')">
+          31--npm install @antv/g6@4.8.24 组织架构图
+        </button>
+      </div>
+      <div class="item">
+        <button @click="goTo('e32')">
+          32--右键菜单组件使用，光标跟随提示
+        </button>
+      </div>
 
     
     </div>

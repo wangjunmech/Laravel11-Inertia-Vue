@@ -17,6 +17,7 @@
         "vite-plugin-html": "^3.2.2"
     },
     "dependencies": {
+        "@antv/g6": "^4.8.24",
         "@element-plus/icons-vue": "^2.3.2",
         "@inertiajs/vue3": "^1.2.0",
         "@univerjs/design": "^0.25.0",

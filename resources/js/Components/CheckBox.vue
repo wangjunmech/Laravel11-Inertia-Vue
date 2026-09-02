@@ -1,4 +1,5 @@
 <template>
+  <!-- 复选框组件 -->
   <div class="flex items-center gap-2 select-none">
     <input
       type="checkbox"
