@@ -122,7 +122,7 @@ const goTo = (path) => {
       </div>
       <div class="item">
         <button @click="goTo('e9999')">
-          36进制：数位字母代码升级器
+          --进制计算：数位字母代码升级器
         </button>
       </div>
       <div class="item">
@@ -203,6 +203,11 @@ const goTo = (path) => {
       <div class="item">
         <button @click="goTo('e32')">
           32--右键菜单组件使用，光标跟随提示
+        </button>
+      </div>
+      <div class="item">
+        <button @click="goTo('e33')">
+          33--产品成本明细对比
         </button>
       </div>
 
