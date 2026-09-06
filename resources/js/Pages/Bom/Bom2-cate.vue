@@ -1,0 +1,778 @@
+<template>  
+  <div class="bom-container">
+    <div class="bom-header">
+      <h2 class="text-2xl font-bold">结构化BOM创建器⏱</h2>
+
+
+      <!-- 复选框绑定修改：不再直接v-model，改用change事件手动控制勾选状态 -->
+      <label class="config-toggle">
+        <input 
+          type="checkbox" 
+          :checked="noRepeatName" 
+          @change="handleToggleNoRepeat"
+          class="mr-2"
+        >
+        BOM产品编号全局无重复({{ noRepeatName?'是':'否' }})
+      </label>
+      
+      <div class="button-group">
+        <button 
+          @click="console.log(JSON.stringify(bomData))" 
+          class="ml-4 px-3 py-1 bg-blue-500 hover:bg-green-600 text-white rounded transition-colors"
+        >
+          exportConsole
+        </button>
+        <button 
+          @click="exportToTxt" 
+          class="ml-4 px-3 py-1 bg-blue-500 hover:bg-green-600 text-white rounded transition-colors"
+        >
+          Export📄
+        </button>
+        <button @click="handleExport" class="action-btn ml-4 px-3 py-1 bg-blue-500 hover:bg-green-600 rounded-lg">
+              📄 导出 Excel 文件
+        </button>
+      </div>
+
+    </div>
+    <!-- 第2行操作菜单区 -->
+    <div class="flex "> 
+        <!-- 搜索输入框 -->
+        <div class="justify-start items-start">
+          <input
+            title="搜索BOM"
+            v-model="searchKeyword"
+            @dblclick="searchKeyword = ''"
+            @keyup.enter.prevent="searchKeyword = ''"
+            @keyup.esc.prevent="searchKeyword = ''"
+            placeholder="🔍搜索编号，名称"
+            class="rounded-lg h-8 max-w-[220px] ml-auto border border-gray-300"
+          >
+        </div> 
+
+        <!-- 类别筛选按钮及弹窗 -->
+        <div>
+          <div @click="cateFilterControl" class="action-btn ml-4 px-3 py-1 bg-orange-200 hover:bg-slate-200 rounded-lg cursor-pointer">
+              类别筛选
+          </div>
+            <!-- 类别弹窗 -->
+            <div v-if="cateFilterFlag" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click="cateFilterFlag=false">
+              <div class="bg-white p-5 rounded-lg w-[330px]" @click.stop>
+                <h3 class="font-bold mb-3">勾选需要展示的类别：</h3>
+                <h4 class="font-bold mb-4 text-red-600">⚠有子类名称不同的父类别不被筛选!</h4>
+                <div v-for="(item) in cateOptionList" :key="item.cateId" class="flex gap-3 items-center my-2">
+                  <input type="checkbox" id="item.cateId" v-model="item.showCate" @click="handleCateFilter" >
+                  <span>{{item.cateName}}</span>
+                </div>
+                <div class="flex gap-3 mt-4">
+                  <button @click="checkAllCate" class="px-3 py-1 bg-gray-300 rounded">全选</button>
+                  <button @click="unCheckAllCate" class="px-3 py-1 bg-gray-300 rounded">全不选</button>
+                  <button @click="handleCateConfirm" class="px-3 py-1 bg-blue-500 text-white rounded">确定</button>                  <!-- <button @click="cateFilter;filterBomTree()" class="px-3 py-1 bg-blue-500 text-white rounded">确定</button> -->
+                </div>
+              </div>
+            </div>
+        </div>
+        <!-- 字段筛选 -->
+        <div>
+          <div @click="showFiledControl" class="action-btn ml-4 px-3 py-1 bg-orange-200 hover:bg-slate-200 rounded-lg cursor-pointer">
+                👁︎字段显示选择
+          </div>
+            <!-- 弹窗 -->
+          <div v-if="showFieldPopup" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click="showFieldPopup=false">
+                <div class="bg-white p-5 rounded-lg w-[280px]" @click.stop>
+                  <h3 class="font-bold mb-3">勾选需要展示的列表字段</h3>
+                  <div v-for="(item,idx) in fieldOptions" :key="item.key" class="flex gap-3 items-center my-2">
+                    <input type="checkbox" v-model="item.visible" @change="toggleField(idx)">
+                    <span>{{item.fieldLabel}}</span>
+                  </div>
+                  <div class="flex gap-3 mt-4">
+                    <button @click="fieldOptions.forEach(f=>f.visible=true)" class="px-3 py-1 bg-gray-300 rounded">全选</button>
+                    <button @click="fieldOptions.forEach(f=>f.visible=false)" class="px-3 py-1 bg-gray-300 rounded">全不选</button>
+                    <button @click="showFieldPopup=false" class="px-3 py-1 bg-blue-500 text-white rounded">确定</button>
+                  </div>
+                </div>
+          </div>
+        </div>
+
+        <!--ID层级控制按钮  -->
+        <div class="flex justify-center ml-10 bg-orange-200 items-center px-2 rounded">
+          <label >
+            <input type="checkbox" v-model="showIdLevel" class="mr-2">
+            显示ID层级 ({{ showIdLevel }})
+          </label>
+        </div>
+     
+             
+      
+    </div>
+    <hr class=" border-2 bg-gray-200">
+    <!-- BOM信息汇总区 -->
+     <div class="bg-gray-400 rounded pl-2">        
+        <div>BOM创建时间</div>
+        <div>BOM版本号</div>
+        <!-- 顶部状态栏区域 -->
+          <div class="text-red-500 ml-6 ">
+            检测到重复产品编号：{{repeatCount}} 条
+            <div v-for="(item,index) in repeatCodeList" :key="index" class="ml-3">
+              编号【{{item.code}}】，重复次数：{{item.repeatNum}}
+            </div>
+          </div>
+
+     </div>
+
+    <!-- 表头字段显示 -->
+    <div>
+      <div class="flex items-center w-full ">
+        <!-- 左侧树形名称区 -->
+        <div class="flex-1">
+          <div class="flex items-center">
+            <label for="">自定义：</label>
+            <input 
+              v-model="namePrefix"       
+              type="text"
+              placeholder="编号生成前缀" 
+              class="w-[130px] py-1 border rounded mr-3" 
+            />
+            <label for="">+后缀数位：</label>
+            <!-- 加.number修饰符 + step=1只能输入整数 + 失焦校验范围 -->
+            <input 
+              v-model.number="digitLength"  
+              type="number" 
+              min="1"
+              max="8"
+              step="1"
+              placeholder="数位" 
+              class="w-[80px] py-1 border rounded"
+              @blur="checkDigitRange"
+            />
+          </div>
+        </div>
+
+        <!-- 中间8列表头 -->
+        <div class="flex">
+          <div class=" bg-blue-400 m-1 px-4 rounded-lg">序号</div>
+          <div class=" bg-yellow-400 m-1 px-4 rounded-lg">类别</div>
+          <div class="flex bg-green-100 m-1 px-4 rounded-lg w-[220px] justify-center border">产品编号</div>
+          <div v-if="fieldOptions.find(item => item.key === 'nameEn').visible" class="flex bg-green-400 m-1 px-4 rounded-lg w-[110px]">品名英</div>
+          <div v-if="fieldOptions.find(item => item.key === 'nameCn').visible" class="flex bg-green-400 m-1 px-4 rounded-lg w-[110px]">品名中</div>
+          <div v-if="fieldOptions.find(item => item.key === 'quantity').visible" class="flex bg-red-200 m-1 px-4 rounded-lg">用量</div>
+          <div v-if="fieldOptions.find(item => item.key === 'unit').visible" class="flex bg-red-400 m-1 px-4 rounded-lg">单位</div>
+          <div v-if="fieldOptions.find(item => item.key === 'wasteRate').visible" class="flex bg-green-400 m-1 px-4 rounded-lg">损耗率</div>
+          <div v-if="fieldOptions.find(item => item.key === 'price').visible" class="flex bg-green-400 m-1 px-4 rounded-lg w-[80px] justify-center">单价</div>
+          <div v-if="fieldOptions.find(item => item.key === 'subtotal').visible" class="flex bg-gray-200 m-1 px-4 rounded-lg">小计成本</div>
+          <div v-if="showIdLevel" class="flex m-1 px-4 w-[80px]"></div>
+        </div>
+
+        <!-- 右侧操作区,可修改[]中的宽度 -->
+        <div class="w-[140px] flex-shrink-0 h-full">
+          <div class="h-full flex items-center justify-center ">右侧编辑操作区</div>
+        </div>
+      </div>
+    </div>
+    <hr class="h-2 border-2 bg-gray-200">
+
+    <!-- 向子组件传递两个参数 短横线写法完全规范 -->
+    <BomNode 
+      :bom-data="currentBomData"
+      @update:bom-data="updatebomData"
+      :show-id-level="showIdLevel"
+      :no-repeat-name="noRepeatName"
+      :name-prefix="namePrefix"
+      :digit-length="digitLength"
+      :search-keyword="searchKeyword"
+      :repeat-code-list="repeatCodeList"
+      :field-options="fieldOptions"
+      :cate-option-list="cateOptionList"
+      @select-cate="handleSelectCate"
+      :get-cate-label-by-id="getCateLabelById"
+      @add-cate="handleAddCate"
+    />
+        <!-- 底部总成本汇总 -->
+    <div class="mt-4 bg-slate-200 p-4 rounded shadow flex justify-end">
+      <span>BOM项目总条数：{{bomItemCount-1}}
+      </span>
+      <span class="w-6"></span>
+
+      <span>BOM物料总成本合计：
+        <b class="text-red-600  ml-2">{{ BomTotalCost }} 元</b>
+      </span>
+    </div>
+
+    <!--待优化问题 -->
+    <div class="text-red-500">待改进问题：类别筛选器，单位选择，保存，导入</div>
+  </div>
+</template>
+
+<script setup>
+import { ref,watch, onMounted, onBeforeUnmount,computed, h  } from 'vue';
+import BomNode from "./BomNode.vue";
+import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
+
+
+// 目前过滤条件只匹配 nameEn，需求一般是：产品编号 (label)、品名英文、品名中文任意匹配；
+// 搜索后树形结构容易断裂，需要保留完整父级链路（不能只过滤零散节点，否则树形缩进直接错乱）；
+// 没有清空搜索时恢复原始数据；
+// 输入框没有绑定回车触发、实时防抖（可选优化）。
+const searchKeyword = ref('') //搜索关键字
+
+
+// 控制字段显示弹窗开关
+const fieldOptions = ref([
+  { fieldLabel:"品名英", key:"nameEn", visible:true },
+  { fieldLabel:"品名中", key:"nameCn", visible:true },
+  { fieldLabel:"用量", key:"quantity", visible:true },
+  { fieldLabel:"单位", key:"unit", visible:true },
+  { fieldLabel:"损耗率", key:"wasteRate", visible:true },
+  { fieldLabel:"单价", key:"price", visible:true },
+  { fieldLabel:"小计成本", key:"subtotal", visible:true }
+])
+//控制字段显示
+const showFieldPopup = ref(false)
+const showFiledControl = ()=>{
+  showFieldPopup.value = !showFieldPopup.value
+}
+
+// 控制类别筛选弹窗开关
+const cateFilterFlag = ref(false)
+const cateFilterControl = ()=>{
+  cateFilterFlag.value = !cateFilterFlag.value
+}
+
+
+/**
+ * 类别树形过滤，保留完整父链路
+ * @param {Array} tree 原始bom树
+ * @param {Array} allowCateArr 允许显示的cateName集合
+ * @returns 过滤后的树
+ */
+const filterBomByCate = (tree, allowCateArr) => {
+  // 传入 null/undefined/非数组时才走"不过滤，展示全部"的兜底逻辑（正常不会出现）
+  if (!allowCateArr || !Array.isArray(allowCateArr)) {
+    return [...tree]
+  }
+  // 空数组代表"全不选"，应该展示空列表
+  if (allowCateArr.length === 0) {
+    return []
+  }
+
+  const allowSet = new Set(allowCateArr.map(String))
+  const result = []
+  for (const node of tree) {
+    const childFiltered = filterBomByCate(node.children || [], allowCateArr)
+    const nodeMatch = allowSet.has(String(node.cateId))
+    if (nodeMatch || childFiltered.length > 0) {
+      const newNode = {...node}
+      newNode.children = childFiltered
+      newNode.isOpen = true
+      result.push(newNode)
+    }
+  }
+  return result
+}
+
+const activeCateFilter = computed(() =>
+  cateOptionList.value.filter(opt => opt.showCate).map(opt => opt.cateId)
+)
+
+const handleCateFilter = () => {
+  activeCateFilter.value = cateOptionList.value
+    .filter(opt => opt.showCate)
+    .map(opt => opt.cateId)    
+}
+const handleCateConfirm = () => {
+  cateFilterFlag.value = false
+}
+//父组件-全选类别
+const checkAllCate=() => {
+  cateOptionList.value.forEach(item => {
+    item.showCate=true
+  })
+
+}
+//取消全选类别
+function unCheckAllCate() {
+  cateOptionList.value.forEach(item => {
+    item.showCate = false;
+  });
+
+}
+
+// // 获取所有已经的类别
+// const getCheckedCateList = () => {
+//   // 兜底：确保一定是数组，不是就返回空数组
+//   console.log('')
+//   if(!Array.isArray(cateOptionList)){
+//     return []
+//   }
+//   return cateOptionList.filter(opt => opt.showCate)
+// }
+const activeCateSet = computed(()=>{
+  return new Set(
+    cateOptionList.filter(opt => opt.showCate).map(opt => opt.cateName)
+  )
+})
+const filteredBomData = computed(()=>{
+  if(activeCateSet.value.size === 0){
+    return JSON.parse(JSON.stringify(bomData))
+  }
+  return filterBomTree(bomData, activeCateSet.value)
+})
+
+//控制类别筛选复选框
+const cateSelect = () => {
+  cateSelectFlag.value = !cateSelectFlag.value 
+}
+
+// 父组件封装字段查询函数
+const getFieldVisible = (key) =>{
+  const findItem = fieldOptions.value.find(item=> item.key === key)
+  return findItem?.visible ?? true
+}
+
+// 树节点基础数据
+const bomData = ref(
+[{"id":0,"partCode":"整机总成编号","children":[{"id":4,"partCode":"code0004","children":[{"id":8,"partCode":"code0008","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labselcover000001","nameCn":"扫地机支架","quantity":6,"unit":"g","wasteRate":1,"price":8,"subtotal":48.48,"bgactive":false,"sn":2,"editField":null,"parentId":4,"unitPopupOpen":false,"cateId":3}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"lsabeltr test","nameCn":"扫地机外下壳","quantity":1,"unit":"pcs","wasteRate":1,"price":12,"subtotal":12.12,"bgactive":false,"sn":1,"editField":null,"parentId":0,"unitPopupOpen":false,"cateId":2},{"id":1,"partCode":"code0001","children":[],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"topcover","nameCn":"扫地机电池盒上","quantity":2,"unit":"ass","wasteRate":1,"price":5,"subtotal":10.1,"bgactive":false,"sn":3,"editField":null,"parentId":0,"unitPopupOpen":false,"cateId":5}],"productSn":"x000001","nameEn":"Full Machine","nameCn":"整机总成","quantity":1,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"isOpen":true,"isEdit":false,"isNew":false,"bgactive":false,"sn":0,"editField":null,"parentId":null,"unitPopupOpen":false,"cateId":"0"}])
+
+/**
+ * 树形搜索过滤，保留完整父链
+ * @param {Array} tree 原始bom树
+ * @param {String} keyword 搜索关键词
+ * @returns 过滤后的树形数组
+ */
+const filterBomTree = (tree, keyword) => {
+  if (!keyword.trim()) return [...tree]
+  const kw = keyword.toLowerCase().trim()
+  const result = []
+  for (const node of tree) {
+    const isMatch =
+      node.partCode?.toLowerCase().includes(kw) ||
+      node.nameEn?.toLowerCase().includes(kw) ||
+      node.nameCn?.toLowerCase().includes(kw)
+
+    const childMatched = filterBomTree(node.children || [], keyword)
+
+    if (isMatch || childMatched.length > 0) {
+      const newNode = {...node}
+      newNode.children = childMatched
+      newNode.isOpen = true
+      // ✅新增标记：只有本身匹配关键词才打上true
+      newNode._isKeywordMatch = isMatch
+      result.push(newNode)
+    }
+  }
+  return result
+}
+
+// 计算属性：对外提供过滤后的BOM数据
+const currentBomData = computed(() => {
+  //第一步：先做关键词搜索过滤
+  let afterSearch = filterBomTree(bomData.value, searchKeyword.value)
+  //第二步：再做类别过滤
+  // ✅ 确保 activeCateFilter.value 是数组
+  const filterArr = Array.isArray(activeCateFilter.value) ? activeCateFilter.value : []
+  let finalTree = filterBomByCate(afterSearch, activeCateFilter.value)
+  return finalTree
+})
+
+// 类别下拉数据源
+const cateOptionList =ref([
+  {cateName:"类别",cateId:0, showCate:true},
+  {cateName:"Plastic",cateId:1, showCate:true},
+  {cateName:"PCBA",cateId:2, showCate:true},
+  {cateName:"Metal",cateId:3, showCate:true},
+  {cateName:"Std",cateId:4, showCate:true},
+  {cateName:"Semi-ASS",cateId:5, showCate:true},
+])
+const getCateLabelById = (cid) => {
+  const found = cateOptionList.value.find(i => i.cateId === cid)
+  return found ? found.cate : "类别"
+}
+
+//选择类别
+// const handleSelectCate = (row, opt) => {
+//   // console.log('父组件收到select-cate', row, opt)
+//   row.cateId = opt.cateId
+// }
+
+// 从类别列表获取最大的 cateId
+const getMaxCateId = () => {
+  const arr = cateOptionList.value
+  if (!arr || arr.length === 0) return 0
+  return Math.max(...arr.map(item => item.cateId))
+}
+
+// 添加类别处理提交
+// 根据id递归查找节点并修改节点对象的类别（改cateId，不是cateName）
+function setNodeCate(list, targetId, newCateId) {
+  for (let item of list) {
+    if (item.id === targetId) {
+      item.cateId = newCateId
+      return true
+    }
+    if (item.children && item.children.length > 0) {
+      if (setNodeCate(item.children, targetId, newCateId)) return true
+    }
+  }
+  return false
+}
+
+// 添加类别处理提交
+const handleAddCate = (row, text) => {
+  const txt = text.trim()
+  if (!txt) return
+
+  // 类别名已存在就直接复用现有cateId，不重复新增
+  const existing = cateOptionList.value.find(item => item.cateName === txt)
+  let targetCateId
+
+  if (existing) {
+    targetCateId = existing.cateId
+  } else {
+    targetCateId = Number(getMaxCateId() + 1)
+    cateOptionList.value.push({
+      cateName: txt,
+      cateId: targetCateId,
+      showCate: true
+    })
+  }
+
+  // 关键：用 row.id 去真实 bomData 树里定位节点并更新 cateId
+  // 不要直接改 row（它可能只是筛选/搜索后的拷贝对象，改了也不会持久生效）
+  setNodeCate(bomData.value, row.id, targetCateId)
+}
+
+// 选择已有类别时，同样要按 id 去真实数据源里更新，而不是直接改 row
+const handleSelectCate = (row, opt) => {
+  setNodeCate(bomData.value, row.id, opt.cateId)
+}
+//*************BOM物料编号重复检测 */
+// 存放全部重复编号详情
+const repeatCodeList = ref([])
+// 重复编号数量
+const repeatCount = ref(0)
+// 递归遍历树形bom，收集所有产品编号
+function traverseBom(list,arr=[]){
+  list.forEach(item=>{
+    arr.push(item)
+    // 存在子节点继续递归
+    if(item.children && item.children.length>0){
+      traverseBom(item.children,arr)
+    }
+  })
+  return arr
+}
+
+// 统计重复编号
+function checkRepeatCode(){
+  //1.扁平化拿到所有节点
+  const allNode = traverseBom(bomData.value)
+  //2.编号分组map
+  const codeMap = new Map()
+  allNode.forEach(node=>{
+    const num = node.partCode
+    if(!codeMap.has(num)){
+      codeMap.set(num,[])
+    }
+    codeMap.get(num).push(node)
+  })
+
+  //3.筛选出出现次数大于1的编号
+  repeatCodeList.value = []
+  codeMap.forEach((nodes,code)=>{
+    if(nodes.length >= 2){
+      repeatCodeList.value.push({
+        code:code,
+        nodeList:nodes,
+        repeatNum:nodes.length
+      })
+    }
+  })
+  repeatCount.value = repeatCodeList.value.length
+}
+
+
+watch(bomData,()=>{
+  checkRepeatCode()
+},{deep:true})
+
+//excel处理
+const activeMenuNodeId = ref(null)
+// provide('activeMenuNodeId', activeMenuNodeId)
+/**
+ * 导出BOM为Excel第1步：扁平化BOM树形数据
+ * 递归遍历BOM树，扁平化输出每行数据
+ * @param {Array} nodes 节点数组
+ * @param {Number} level 当前层级
+ * @param {Array} list 收集结果数组
+ */
+const flattenBomTree = (nodes, level = 0, list = []) => {
+  nodes.forEach(node => {
+    // 层级缩进空格：根节点无空格，子节点逐级加空格区分树形
+    const indentSpace = '　'.repeat(level);
+    list.push({
+      level: level,
+      id: node.id,
+      pid: node.parentId ?? '无',
+      sn: node.sn,
+      cateId: node.cateId,
+      name: indentSpace + node.partCode, // 名称自带缩进体现树形结构
+      nameEn: node.nameEn,
+      nameCn: node.nameCn,
+      quantity: node.quantity,
+      unit: node.unit,
+      wasteRate: node.wasteRate + '%',
+      price: node.price,
+      subtotal: node.subtotal.toFixed(2)
+    })
+
+    // 递归遍历子节点，层级+1
+    if (node.children && node.children.length > 0) {
+      flattenBomTree(node.children, level + 1, list)
+    }
+  })
+  return list
+}
+
+/**
+* 导出BOM为Excel第2步：导出操作
+ */
+const handleExport = async () => {
+  try {
+    // 1. 将树形数据扁平化
+    const bomList = flattenBomTree(bomData.value)
+    if (bomList.length === 0) {
+      alert('暂无BOM数据可导出');
+      return;
+    }
+
+    // 2. 创建工作簿 & 工作表
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('BOM物料清单');
+
+    // 3. 定义表头列
+    worksheet.columns = [
+      { header: '层级', key: 'level', width: 8 },
+      { header: '节点ID', key: 'id', width: 10 },
+      { header: '父级PID', key: 'pid', width: 10 },
+      { header: '流水序号SN', key: 'sn', width: 12 },
+      { header: '类别', key: 'cateName', width: 22 },
+      { header: '产品编号(树形缩进)', key: 'name', width: 32 },
+      { header: '品名英文', key: 'nameEn', width: 22 },
+      { header: '品名中文', key: 'nameCn', width: 20 },
+      { header: '用量', key: 'quantity', width: 8 },
+      { header: '单位', key: 'unit', width: 8 },
+      { header: '损耗率', key: 'wasteRate', width: 10 },
+      { header: '采购单价', key: 'price', width: 12 },
+      { header: '小计成本', key: 'subtotal', width: 12 }
+    ];
+
+    // 4. 设置表头样式：加粗、居中、背景浅蓝
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'E6F7FF' }
+    };
+
+    // 5. 填充所有BOM行数据
+    worksheet.addRows(bomList);
+        // 数字列右对齐设置，可选
+            worksheet.getColumn('quantity').alignment = { horizontal: 'right' }
+            worksheet.getColumn('price').alignment = { horizontal: 'right' }
+            worksheet.getColumn('subtotal').alignment = { horizontal: 'right' }
+            worksheet.getColumn('level').alignment = { horizontal: 'center' }
+            worksheet.getColumn('id').alignment = { horizontal: 'center' }
+            worksheet.getColumn('pid').alignment = { horizontal: 'center' }
+            worksheet.getColumn('sn').alignment = { horizontal: 'center' }
+            
+
+    // 奇数行隔行变色，可选
+          worksheet.eachRow((row, rowNum) => {
+            row.alignment = { vertical: 'middle' };
+            // 跳过表头，数据行隔行底色
+            if (rowNum > 1 && rowNum % 2 === 0) {
+              row.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'aef777' }
+              }
+            }
+          });
+
+
+    // 6. 全局单元格垂直居中
+    worksheet.eachRow((row) => {
+      row.alignment = { vertical: 'middle' };
+    });
+
+    // 7. 生成二进制文件并下载
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    saveAs(blob, `结构化BOM清单_${new Date().getTime()}.xlsx`);
+
+  } catch (err) {
+    console.error('Excel导出失败：', err);
+    alert('导出Excel失败，请查看控制台报错');
+  }
+};
+
+
+
+
+// 1. 新增：前缀、数字位数响应式变量（必须声明）
+const namePrefix = ref('code')   // 默认前缀
+const digitLength = ref(4)       // 默认4位数字
+
+const showIdLevel = ref(false)
+const noRepeatName = ref(true) // 默认开启全局不重复
+
+// 数字框失焦校验：强制锁定1~8
+const checkDigitRange = () => {
+  if (digitLength.value < 1) digitLength.value = 1
+  if (digitLength.value > 8) digitLength.value = 8
+}
+
+
+
+// 接收子组件传递回来的新数据
+const updatebomData = (newData) => {
+  bomData.value = newData
+}
+
+// 导出 TXT 文件
+const exportToTxt = () => {
+  try {
+    const dataStr = JSON.stringify(bomData.value, null, 2)
+    const blob = new Blob([dataStr], { type: 'text/plain;charset=utf-8' })
+    const downloadLink = document.createElement('a')
+    downloadLink.href = URL.createObjectURL(blob)
+    downloadLink.download = `bom-data-${new Date().getTime()}.txt`
+    downloadLink.click()
+    URL.revokeObjectURL(downloadLink.href)
+  } catch (error) {
+    console.error('导出失败：', error)
+    alert('导出文件失败，请检查控制台错误信息。')
+  }
+}
+
+// ===================== 新增核心逻辑 =====================
+/**
+ * 递归遍历整棵BOM树，收集所有 productSn 产品编号
+ * @param {Array} nodes 节点数组
+ * @param {Set} snList 存储已出现编号
+ * @param {Array} duplicateList 存储重复编号
+ */
+const traverseAllSn = (nodes, snList = new Set(), duplicateList = []) => {
+  nodes.forEach(node => {
+    const sn = node.partCode?.trim()
+    // 非空才校验
+    if (sn) {
+      if (snList.has(sn)) {
+        // 重复了，推入重复列表
+        duplicateList.push(sn)
+      } else {
+        snList.add(sn)
+      }
+    }
+    // 递归遍历子节点
+    if (node.children && node.children.length > 0) {
+      traverseAllSn(node.children, snList, duplicateList)
+    }
+  })
+  return duplicateList
+}
+
+/**
+ * 复选框切换事件
+ * @param {Event} e 原生change事件
+ */
+const handleToggleNoRepeat = (e) => {
+  // 想要勾选开启防重复
+  if (e.target.checked) {
+    // 校验全局编号是否重复
+    const repeatSnArr = traverseAllSn(bomData.value)
+    if (repeatSnArr.length > 0) {
+      // 存在重复：取消勾选 + 弹窗警告
+      alert(`检测到产品编号存在全局重复：\n${[...new Set(repeatSnArr)].join('、')}\n\n请修改重复编号后，再开启全局不重复模式`)
+      noRepeatName.value = false
+    } else {
+      // 无重复：正常开启
+      noRepeatName.value = true
+    }
+  } else {
+    // 取消勾选：直接关闭，允许重复
+    noRepeatName.value = false
+  }
+}
+// BOM项目条数
+const bomItemCount = computed(()=>{
+  let count = 0
+  function loop(list){
+    list.forEach(item=>{
+      count++
+      if(item.children && item.children.length > 0){
+        loop(item.children)
+      }
+    })
+  }
+  loop(bomData.value)
+  return count
+})
+// BOM总成本，一次性递归遍历全部节点累加小计成本
+const BomTotalCost = computed(()=>{
+  let sum = 0
+  // 递归遍历函数
+  function loop(list){
+    list.forEach(item=>{
+      sum += Number(item.subtotal ?? 0)
+      if(item.children && item.children.length > 0){
+        loop(item.children)
+      }
+    })
+  }
+  loop(bomData.value)
+  // sum = sum.toFixed(2)//四舍五入保留两位小数,文本类型
+  sum = Number(sum.toFixed(2))//数字类型
+  return sum
+})
+
+</script>
+
+<style scoped>
+.bom-container {
+  width:98%;
+  margin: 10px auto;  
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  padding: 6px;
+}
+.bom-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 6px;
+  margin-bottom: 15px;
+  
+}
+.config-toggle {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+}
+.button-group button {
+  font-size: 14px;
+  cursor: pointer;
+}
+</style>
