@@ -1,17 +1,21 @@
 <template>
   <div class="p-4 space-y-4">
-    <div class="text-xl font-semibold">BOM物料表</div>
+    <div class="text-xl font-semibold">BOM物料表2</div>
       <div class="tree-header mb-6">
         <h4>BOM编号生成器</h4>
         <Link
         :href="route('bom.edit', { versionId: 5 })"
-        class="inline-block bg-red-400 px-6 py-1 hover:bg-slate-700 text-left rounded-lg w-fit"
+        class="m-2 bg-red-400 px-6 hover:bg-red-300 text-left rounded-lg p-1"
         >BOM</Link>
-        <a
-          :href="route('bom2')"
-          class="inline-block bg-blue-400 px-6 py-1 hover:bg-slate-700 text-left rounded-lg w-fit"
+        <a :href="route('bom2')"
+          class="m-2 bg-blue-400 px-6 hover:bg-red-300 text-left rounded-lg p-1"
         >
           点击跳转到BOM2
+        </a>
+        <a :href="route('bom3')"
+          class="m-2 bg-yellow-400 px-6 hover:bg-red-300 text-left rounded-lg p-1"
+        >
+          点击跳转到BOM3
         </a>
       </div>
       <div>BOM物料表规则数位说明：       

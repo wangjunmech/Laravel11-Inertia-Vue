@@ -325,7 +325,7 @@ function createStackingViewer({ outerLength, outerWidth, outerBaseHeight, outerM
 
 const bgColor = ref('#f0f0f0')
 const pColor = ref('#4a90d9')
-const opacity = ref(0.85)
+const opacity = ref(0.25)
 
 const palletLength = ref(1200)
 const palletWidth = ref(1000)

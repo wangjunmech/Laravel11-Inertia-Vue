@@ -1,63 +1,125 @@
 <template>
   <div class="container">
-    <div class="text-xl p-2">产品工艺流程表 <span class="cursor-pointer text-blue-500 hover:underline" @click="showData">打印当前数据到控制台</span> </div>
-    <!-- 面包屑导航 -->
-    <div class="breadcrumb-wrap flex flex-wrap">
-      <span class="label">当前路径：</span>
-      <span
-        v-for="(item, index) in breadList"
-        :key="item.id"
-        class="bread-hover "
-        @click="handleBreadClick(item)"
-      >
-        {{ item.area }}
-        <span v-if="index < breadList.length - 1" class="separator">→</span>
-      </span>
+    <div class="text-xl p-2">
+      产品工艺选择表
+      <span class="cursor-pointer text-blue-500 hover:underline" @click="showData">打印当前数据到控制台</span>
     </div>
-
-    <div class="cascader-box">
+    <!-- 快捷选择区 -->
+    <div class="text-xl p-2">
+      <!-- 面包屑导航 -->
+      <div class="breadcrumb-wrap flex flex-wrap">
+        <span class="label">当前路径：</span>
+        <span
+          v-for="(item, index) in breadList"
+          :key="item.id"
+          class="bread-hover"
+          @click="handleBreadClick(item)"
+        >
+          {{ item.area }}
+          <span v-if="index < breadList.length - 1" class="separator">→</span>
+        </span>
+      </div>
+      <hr class="mb-6">
+      <div>        
+        基础材料选择：
+      </div>
       <div
-        v-for="(column, colIdx) in menuColumns"
-        :key="colIdx"
-        class="menu-column"
-        :class="{ 'menu-column--active': colIdx === menuColumns.length - 1 && colIdx > 0 }"
-  
-        :style="{
-          left: getColLeft(colIdx) + 'px',
-          width: getColWidth(colIdx) + 'px',
-          zIndex: colIdx
-        }"
-        @mouseenter="onHoverColumn(colIdx)"
+        class="cascader-box rounded-lg relative"
+        :style="{ height: boxHeight + 'px' }"
       >
-<TreeMenuItem
-  v-for="item in column"
-  :key="item.id"
-  :item="item"
-  :is-active="selectedPath.includes(item.id)"
-  :has-child="hasChild(item.id)"
-  :is-editing="editingId === item.id"
-  @mouseenter="onMouseEnter(colIdx, item)"
-  @select="onSelectItem(colIdx, item)"
-  @add-child="handleAddChild(item)"
-  @add-sibling="handleAddSibling(item)"
-  @rename="onRename"
-  @cancel-edit="editingId = null"
-  @start-edit="editingId = $event"
-/>
+        <div
+          v-for="(column, colIdx) in menuColumns"
+          :key="colIdx"
+          :ref="el => setColumnRef(el, colIdx)"
+          class="menu-column"
+          :class="{ 'menu-column--active': colIdx === menuColumns.length - 1 && colIdx > 0 }"
+          :style="{
+            left: getColLeft(colIdx) + 'px',
+            width: getColWidth(colIdx) + 'px',
+            zIndex: colIdx
+          }"
+          @mouseenter="onHoverColumn(colIdx)"
+        >
+          <TreeMenuItem
+            v-for="item in column"
+            :key="item.id"
+            :item="item"
+            :is-active="selectedPath.includes(item.id)"
+            :has-child="hasChild(item.id)"
+            :is-editing="editingId === item.id"
+            @mouseenter="onMouseEnter(colIdx, item)"
+            @select="onSelectItem(colIdx, item)"
+            @add-child="handleAddChild(item)"
+            @add-sibling="handleAddSibling(item)"
+            @rename="onRename"
+            @cancel-edit="editingId = null"
+            @start-edit="editingId = $event"
+          />
+        </div>
+      </div>
+      <hr class="mb-6">
+      <div>        
+        材料形态选择
+      </div>
+    <div
+        class="cascader-box rounded-lg relative"
+        :style="{ height: 40 + 'px' }"
+      >
+    </div>
+    <hr class="mb-6">
+
+      <div>        
+        成型工艺选择
+      </div>
+      <div
+        class="cascader-box rounded-lg relative"
+        :style="{ height: boxHeight + 'px' }"
+      >
+        <div
+          v-for="(column, colIdx) in menuColumns"
+          :key="colIdx"
+          :ref="el => setColumnRef(el, colIdx)"
+          class="menu-column"
+          :class="{ 'menu-column--active': colIdx === menuColumns.length - 1 && colIdx > 0 }"
+          :style="{
+            left: getColLeft(colIdx) + 'px',
+            width: getColWidth(colIdx) + 'px',
+            zIndex: colIdx
+          }"
+          @mouseenter="onHoverColumn(colIdx)"
+        >
+          <TreeMenuItem
+            v-for="item in column"
+            :key="item.id"
+            :item="item"
+            :is-active="selectedPath.includes(item.id)"
+            :has-child="hasChild(item.id)"
+            :is-editing="editingId === item.id"
+            @mouseenter="onMouseEnter(colIdx, item)"
+            @select="onSelectItem(colIdx, item)"
+            @add-child="handleAddChild(item)"
+            @add-sibling="handleAddSibling(item)"
+            @rename="onRename"
+            @cancel-edit="editingId = null"
+            @start-edit="editingId = $event"
+          />
+        </div>
       </div>
     </div>
+    <hr>
+    <!-- 快捷添加区 -->
+    <div>快速添加工艺流程*******************************</div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick, watch, onBeforeUnmount } from 'vue'
 import TreeMenuItem from '@/Components/TreeMenuItem.vue'
 
 // ========== 自定义配置 ==========
-
-const baseColWidth = 200 // 每列的基础宽度
-const stackOverlap = ref(-30)//type Number // 列之间的重叠宽度
-const foldSideWidth = ref(100)//type Number // 折叠侧边栏的宽度
+const baseColWidth = 200        // 每列的基础宽度
+const stackOverlap = ref(-30)   // 列之间的重叠宽度
+const foldSideWidth = ref(100)  // 折叠侧边栏的宽度
 const hoverActiveCol = ref(1)
 
 const letters = ref([
@@ -73,93 +135,32 @@ const letters = ref([
   { id: 7, area: '碳钢', pid: 1 },
   { id: 8, area: '不锈钢', pid: 1 },
   { id: 9, area: '镁合金', pid: 1 },
-
-  { id: 10, area: '通用热塑性塑料', pid: 2 },
-  { id: 11, area: '工程热塑性塑料', pid: 2 },
-  { id: 12, area: '热固性塑料', pid: 2 },
-
-  { id: 13, area: '丁腈橡胶NBR', pid: 3 },
-  { id: 14, area: '三元乙丙EPDM', pid: 3 },
-  { id: 15, area: '硅橡胶VMQ', pid: 3 },
-
-  { id: 16, area: '玻纤FRP', pid: 4 },
-  { id: 17, area: '碳纤维复材', pid: 4 },
-
-  // 三级：成型工艺
-  { id: 18, area: '压力压铸', pid: 5 },
-  { id: 19, area: '模锻成型', pid: 5 },
-  { id: 20, area: '砂型铸造', pid: 5 },
-
-  { id: 21, area: '砂型铸造', pid: 6 },
-  { id: 22, area: '热挤压成型', pid: 6 },
-
-  { id: 23, area: '模锻成型', pid: 7 },
-  { id: 24, area: '板料冲压', pid: 7 },
-
-  { id: 25, area: '板料冲压', pid: 8 },
-  { id: 26, area: '粉末冶金', pid: 8 },
-
-  { id: 27, area: '压力压铸', pid: 9 },
-
-  { id: 28, area: '注塑成型', pid: 10 },
-  { id: 29, area: '挤出成型', pid: 10 },
-  { id: 30, area: '吹塑成型', pid: 10 },
-
-  { id: 31, area: '注塑成型', pid: 11 },
-  { id: 32, area: '挤出成型', pid: 11 },
-
-  { id: 33, area: '模压成型', pid: 12 },
-
-  { id: 34, area: '模压硫化', pid: 13 },
-  { id: 35, area: '模压硫化', pid: 14 },
-  { id: 36, area: '模压硫化', pid: 15 },
-
-  { id: 37, area: '手糊成型', pid: 16 },
-  { id: 38, area: '模压复材成型', pid: 16 },
-  { id: 39, area: '预浸料热压成型', pid: 17 },
-
-  // 四级：主工序
-  { id: 40, area: '原料烘干', pid: 31 },
-  { id: 41, area: '熔融注射充模', pid: 31 },
-  { id: 42, area: '保压冷却', pid: 31 },
-  { id: 43, area: '开模顶出', pid: 31 },
-  { id: 44, area: '除披锋', pid: 31 },
-
-  { id: 45, area: '金属熔炼', pid: 18 },
-  { id: 46, area: '高压充型', pid: 18 },
-  { id: 47, area: '冷却脱模', pid: 18 },
-  { id: 48, area: '切浇口除飞边', pid: 18 },
-
-  { id: 49, area: '橡胶混炼裁料', pid: 36 },
-  { id: 50, area: '模具高温硫化', pid: 36 },
-  { id: 51, area: '脱模修边', pid: 36 },
-
-  // 五级：后处理工序
-  { id: 52, area: '回火去内应力', pid: 44 },
-  { id: 53, area: '丝印镭雕', pid: 44 },
-  { id: 54, area: '尺寸全检', pid: 44 },
-  { id: 55, area: '成品包装', pid: 44 },
-
-  { id: 56, area: '抛丸清理', pid: 48 },
-  { id: 57, area: '去应力退火', pid: 48 },
-  { id: 58, area: 'CNC机加工', pid: 48 },
-  { id: 59, area: '阳极氧化', pid: 48 },
-
-  { id: 60, area: '二次硫化', pid: 51 },
-  { id: 61, area: '尺寸外观检验', pid: 51 },
-  { id: 62, area: '成品包装', pid: 51 }
 ])
 
+const processes = ref([
+  // 一级：材料大类 pid=0
+  { id: 1, area: '注塑', pid: 0 },
+  { id: 2, area: '挤出', pid: 0 },
+  { id: 3, area: '压铸', pid: 0 },
+  { id: 4, area: '3D打印', pid: 0 },
+
+  // 二级：材料子类
+  { id: 5, area: '单色注塑', pid: 1 },
+  { id: 6, area: '双色注塑', pid: 1 },
+  { id: 7, area: '多色注塑', pid: 1 },
+
+])
 const idMap = computed(() => {
   const map = {}
   letters.value.forEach(item => map[item.id] = item)
   return map
 })
-const showData=() => {
-    // console.log('当前数据', letters.value)//打印对象
+
+const showData = () => {
   let jsonData = JSON.stringify(letters.value, null, 2)
   console.log('当前数据', jsonData)
 }
+
 const getChildren = pid => letters.value.filter(i => i.pid === pid)
 const hasChild = id => getChildren(id).length > 0
 
@@ -239,6 +240,7 @@ const handleAddChild = (item) => {
   selectedPath.value = getPathToItem(item)
   editingId.value = newId
 }
+
 // 添加同级
 const handleAddSibling = (item) => {
   const newId = maxId.value + 1
@@ -257,6 +259,36 @@ const onRename = ({ id, value }) => {
   editingId.value = null
 }
 
+// ========== 高度自适应相关 ==========
+const boxHeight = ref(320)   // 初始默认值，避免首次渲染前高度塌陷
+const columnRefs = ref([])   // 收集每一列 DOM 的引用
+
+const setColumnRef = (el, idx) => {
+  if (el) {
+    columnRefs.value[idx] = el
+    resizeObserver.observe(el)
+  }
+}
+
+const measureHeight = () => {
+  const heights = columnRefs.value
+    .filter(Boolean)
+    .map(el => el.scrollHeight)
+  boxHeight.value = heights.length ? Math.max(...heights) : 320
+}
+
+// 提前创建，避免 onMounted 时序问题
+const resizeObserver = new ResizeObserver(measureHeight)
+
+// menuColumns 变化后（新增/删除/展开新列）重新测量，并同步 columnRefs 长度
+watch(menuColumns, (newCols) => {
+  columnRefs.value.length = newCols.length   // 截断多余的旧引用
+  nextTick(measureHeight)
+}, { deep: true, immediate: true })
+
+onBeforeUnmount(() => {
+  resizeObserver.disconnect()
+})
 </script>
 
 <style scoped>
@@ -264,7 +296,6 @@ const onRename = ({ id, value }) => {
   padding: 20px;
 }
 .breadcrumb-wrap {
-    
   margin-bottom: 10px;
   font-size: 16px;
   display: flex;
@@ -275,7 +306,7 @@ const onRename = ({ id, value }) => {
   color: #222;
   margin-right: 8px;
 }
-.breadcrumb-item {
+.bread-hover {
   cursor: pointer;
   padding: 0 6px;
   color: #333;
@@ -290,18 +321,18 @@ const onRename = ({ id, value }) => {
 
 .cascader-box {
   position: relative;
-  border: 1px solid #ccff23;
-  min-height: 320px;
+  border: 1px dashed #e923ff; 
+  transition: height 0.24s ease;
 }
 .menu-column {
   position: absolute;
   top: 0;
   background: #fff;
   border-right: 1px solid #eee;
-
+  transition: left 0.24s ease, width 0.24s ease, border-color 0.2s ease;
 }
 .menu-column--active {
-  border: 2px solid #ef4444;   /* 红色边框，四周都要，所以用 border 而不是 border-right */
+  border: 2px solid #ef4444;
   border-radius: 8px;
 }
 </style>

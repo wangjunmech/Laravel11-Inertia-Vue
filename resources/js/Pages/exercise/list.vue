@@ -172,7 +172,7 @@ const goTo = (path) => {
       </div>
       <div class="item">
         <button @click="goTo('e26')">
-          26--产品工艺流程表
+          26--产品工艺选择表
         </button>
       </div>
       <div class="item">
@@ -207,7 +207,17 @@ const goTo = (path) => {
       </div>
       <div class="item">
         <button @click="goTo('e33')">
-          33--产品成本明细对比
+          33--产品工艺成本明细对比分析
+        </button>
+      </div>
+      <div class="item">
+        <button @click="goTo('e34')">
+          34--本地Wifi扫描二维码，获取
+        </button>
+      </div>
+      <div class="item">
+        <button @click="goTo('e35')">
+          35--工艺制造编辑器
         </button>
       </div>
 

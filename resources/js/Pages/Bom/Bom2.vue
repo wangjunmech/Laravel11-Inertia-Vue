@@ -332,7 +332,15 @@ const getFieldVisible = (key) =>{
 
 // 树节点基础数据
 const bomData = ref(
-[{"id":0,"partCode":"整机总成编号","children":[{"id":4,"partCode":"code0004","children":[{"id":8,"partCode":"code0008","children":[],"isOpen":false,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"labselcover000001","nameCn":"扫地机支架","quantity":6,"unit":"g","wasteRate":1,"price":8,"subtotal":48.48,"bgactive":false,"sn":2,"editField":null,"parentId":4,"unitPopupOpen":false}],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"lsabeltr test","nameCn":"扫地机外下壳","quantity":1,"unit":"pcs","wasteRate":1,"price":12,"subtotal":12.12,"bgactive":false,"sn":1,"editField":null,"parentId":0,"unitPopupOpen":false},{"id":1,"partCode":"code0001","children":[],"isOpen":true,"isEdit":false,"isNew":false,"productSn":"x000001","nameEn":"topcover","nameCn":"扫地机电池盒上","quantity":2,"unit":"ass","wasteRate":1,"price":5,"subtotal":10.1,"bgactive":false,"sn":3,"editField":null,"parentId":0,"unitPopupOpen":false}],"productSn":"x000001","nameEn":"Full Machine","nameCn":"整机总成","quantity":1,"unit":"pcs","wasteRate":0,"price":0,"subtotal":0,"isOpen":true,"isEdit":false,"isNew":false,"bgactive":false,"sn":0,"editField":null,"parentId":null,"unitPopupOpen":false}])
+  [{
+    "id": 0, "partCode": "整机总成编号", "children":
+      [{
+        "id": 4, "partCode": "code0001", "children":
+          [{ "id": 8, "partCode": "code0002", "children": [], "isOpen": false, "isEdit": false, "isNew": false, "productSn": "x000001", "nameEn": "labselcover000001", "nameCn": "扫地机支架", "quantity": 6, "unit": "g", "wasteRate": 1, "price": 8, "subtotal": 48.48, "bgactive": false, "sn": 2, "editField": null, "parentId": 4, "unitPopupOpen": false }], "isOpen": true, "isEdit": false, "isNew": false, "productSn": "x000001", "nameEn": "lsabeltr test", "nameCn": "扫地机外下壳", "quantity": 1, "unit": "pcs", "wasteRate": 1, "price": 12, "subtotal": 12.12, "bgactive": false, "sn": 1, "editField": null, "parentId": 0, "unitPopupOpen": false
+      },
+        { "id": 1, "partCode": "code0003", "children": [], "isOpen": true, "isEdit": false, "isNew": false, "productSn": "x000001", "nameEn": "topcover", "nameCn": "扫地机电池盒上", "quantity": 2, "unit": "ass", "wasteRate": 1, "price": 5, "subtotal": 10.1, "bgactive": false, "sn": 3, "editField": null, "parentId": 0, "unitPopupOpen": false }], "productSn": "x000001", "nameEn": "Full Machine", "nameCn": "整机总成", "quantity": 1, "unit": "pcs", "wasteRate": 0, "price": 0, "subtotal": 0, "isOpen": true, "isEdit": false, "isNew": false, "bgactive": false, "sn": 0, "editField": null, "parentId": null, "unitPopupOpen": false
+  }
+  ])
 
 /**
  * 树形搜索过滤，保留完整父链

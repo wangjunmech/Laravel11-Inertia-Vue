@@ -149,13 +149,23 @@
                     class="m-2 cursor-pointer"
                 />
                 <span>网格显示</span>
+            </div>
 
+            <div class="w-28 bg-slate-400 m-1 cursor-pointer flex items-center gap-2 rounded-md">
+                <input
+                    type="checkbox"
+                    v-model="showFrame"
+                    @change="toggleGrid(showFrame)"
+                    class="m-2 cursor-pointer"
+                />
+                <span>轮廓线框</span>
             </div>
             <div 
             @click=setInitView
             class="w-24 bg-slate-400 m-1 cursor-pointer flex items-center gap-2 rounded-md justify-center">
                 默认视图
             </div>
+ 
             <div 
               @click="showViewMenu = !showViewMenu"
               class="w-24 bg-slate-400 m-1 cursor-pointer flex items-center gap-2 rounded-md justify-center relative">
@@ -207,6 +217,7 @@ const isDragging = ref(false)
 const bgColor = ref('#f0f0f0') // 和 initThree() 里默认背景色保持一致
 const pColor = ref(null)
 const showGrid = ref(true) // 默认显示网格
+const showFrame = ref(true) // 默认显示线框
 const showViewMenu = ref(false) // 控制"视图方向"下拉菜单显示/隐藏
 const selectedFaceInfo = ref(null) // 当前选中曲面的信息，用于面板显示
 let currentViewDistance = 300 // 默认值，模型加载后会更新
