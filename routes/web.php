@@ -11,12 +11,14 @@ use App\Http\Controllers\AdminController;
 use App\Http\Middleware\Admin;
 use App\Http\Controllers\ExerciseController;
 use App\Http\Controllers\BomController;
+use App\Http\Controllers\ProcessDictTreeController;
+use App\Http\Controllers\CrawlTaskController;
 
 // Route::get('/', function () {
 //     dd('Laravel 正常运行'); // 浏览器能看到这句话就代表框架没问题
 // });
 // echo 'Hello World'; // 这行代码不会被执行，因为上面已经有了一个返回响应的语句
-Route::inertia('/', 'Home')->name('home');
+// Route::inertia('/', 'Home')->name('home');
 Route::inertia('/v1', 'verifiedPages/V1')->middleware('verified')->name('approvedbtn1');
 Route::inertia('/v2', 'verifiedPages/V2')->middleware('verified')->name('approvedbtn2');
 
@@ -54,7 +56,7 @@ Route::resource('listing', ListingController::class)->except('index');
 route::middleware(['auth', 'verified', Admin::class])
     ->controller(AdminController::class)
     ->group(function () {
-        Route::get('/admin', 'index')->name('admin.index');
+        // Route::get('/admin', 'index')->name('admin.index');
         Route::put('/admin/{user}/role', 'role')->name('admin.role');
         Route::get('/users/{user}', 'show')->name('user.show');
         Route::get('/admin/details/{user}', 'details')->name('admin.details');
@@ -81,6 +83,14 @@ Route::post('/bom/copy/{versionId}', [BomController::class, 'copyVersion'])->nam
 Route::get('/bom/bom2', [BomController::class, 'bom2'])->name('bom2');
 Route::get('/bom/bom3', [BomController::class, 'bom3'])->name('bom3');
 
+
+// 获取字典树
+Route::get('/process-dict-tree/{type}', [ProcessDictTreeController::class, 'getTree'])->name('processDictTree.get');
+// 全局同步保存
+Route::post('/process-dict-tree/sync', [ProcessDictTreeController::class, 'sync']);
+
 //Auth Routes,引入的独立文件
 require __DIR__.'/auth.php';
 
+// QueryList 完整示例：爬虫任务创建、预览、执行、取消、下载
+require __DIR__ . '/crawler.php';

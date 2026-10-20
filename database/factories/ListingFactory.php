@@ -29,6 +29,7 @@ class ListingFactory extends Factory
                 ]),
             'email' => fake()->email(),
             'link' => fake()->url(),
+            'image'       => null,
             'approved' => 1
         ];
     }

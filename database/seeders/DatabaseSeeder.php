@@ -20,7 +20,7 @@ class DatabaseSeeder extends Seeder
         //     'name' => 'Test User',
         //     'email' => 'test@example.com',
         // ]);
-
+        //运行php artisan db:seed时会自动生成指定的数据
         User::factory(5)->create();//创建5个用户
         Listing::factory(80)->create();//创建80个列表项
     }

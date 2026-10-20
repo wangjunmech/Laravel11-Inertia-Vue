@@ -12,6 +12,7 @@ class ListingSeeder extends Seeder
      */
     public function run(): void
     {
-        //
+        //运行php artisan db:seed时会自动生成指定的数据
+        \App\Models\Listing::factory()->count(20)->create();
     }
 }

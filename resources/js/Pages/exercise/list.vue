@@ -220,6 +220,11 @@ const goTo = (path) => {
           35--工艺制造编辑器
         </button>
       </div>
+      <div class="item">
+        <button @click="goTo('e36')">
+          36--模具规格书
+        </button>
+      </div>
 
     
     </div>

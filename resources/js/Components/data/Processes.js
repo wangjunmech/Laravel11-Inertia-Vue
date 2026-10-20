@@ -1,0 +1,15 @@
+export const Processes = [
+    { id: 1, area: '3D打印', pid: 0 },
+    { id: 2, area: '硅胶模复模', pid: 0 },
+    { id: 3, area: '注塑', pid: 0 },
+    { id: 4, area: '挤出', pid: 0 },
+    { id: 5, area: '压铸', pid: 0 },
+    { id: 6, area: '冲压', pid: 0 },
+    { id: 7, area: '拉伸', pid: 0 },
+    { id: 8, area: '旋压', pid: 0 },
+    { id: 9, area: '滚压', pid: 0 },
+    { id: 10, area: '热压', pid: 0 },
+    { id: 11, area: '冷压', pid: 0 },
+    { id: 12, area: '锻造', pid: 0 },
+    { id: 13, area: '冷锻', pid: 0 },
+]
