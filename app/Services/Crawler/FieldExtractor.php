@@ -48,4 +48,25 @@ class FieldExtractor
 
         return ['data' => $data, 'errors' => $errs];
     }
+
+    /**
+     * 页面里所有 <a href> 的原始值（相对路径由 UrlGuard::absolute 处理）
+     *
+     * @return string[]
+     */
+    public function links(string $html): array
+    {
+        if (trim($html) === '') {
+            return [];
+        }
+
+        try {
+            return array_values(array_filter(
+                QueryList::html($html)->find('a')->attrs('href')->all(),
+                fn ($h) => is_string($h) && $h !== ''
+            ));
+        } catch (Throwable $e) {
+            return [];
+        }
+    }
 }

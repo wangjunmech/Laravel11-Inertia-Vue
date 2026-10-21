@@ -116,6 +116,11 @@ const goTo = (path) => {
       </div>
 
       <div class="item">
+        <a href="http://localhost:8000/crawler" >
+          QueryList爬虫测试
+        </a>
+      </div>
+      <div class="item">
         <a href="https://app.diagrams.net/" >
           --开源流程图：app.diagrams.net
         </a>

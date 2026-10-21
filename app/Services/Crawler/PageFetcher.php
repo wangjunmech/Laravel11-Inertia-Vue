@@ -4,11 +4,10 @@ namespace App\Services\Crawler;
 
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Psr\Http\Message\ResponseInterface;
 use Throwable;
-use App\Services\Crawler\CrawlException;
-use App\Services\Crawler\UrlGuard;
-use Illuminate\Support\Facades\Log;
 
 class PageFetcher
 {
@@ -17,6 +16,12 @@ class PageFetcher
 
     public function __construct(private UrlGuard $guard)
     {
+    }
+
+    /** 抓取页面和读取 robots.txt 使用同一个 UA，robots 规则才能对得上 */
+    public static function userAgent(): string
+    {
+        return Str::slug(config('app.name', 'laravel')) . '-crawler/1.0';
     }
 
     /**
@@ -46,7 +51,7 @@ class PageFetcher
 
             $type = (string) $response->header('Content-Type');
             if ($type !== '' && !preg_match('~text/html|application/xhtml~i', $type)) {
-                throw new CrawlException('目标不是 HTML 页面（' . $type . '）');
+                throw new CrawlException('目标不是 HTML 页面（' . $type . ')');
             }
 
             $body = $response->body();
@@ -54,7 +59,10 @@ class PageFetcher
                 throw new CrawlException('页面内容过大');
             }
 
-            return ['url' => $url, 'status' => $status, 'html' => $this->toUtf8($body, $type)];
+            $html = $this->toUtf8($body, $type);
+            $this->assertNotBlocked($url, $html);
+
+            return ['url' => $url, 'status' => $status, 'html' => $html];
         }
 
         throw new CrawlException('重定向次数过多');
@@ -64,15 +72,15 @@ class PageFetcher
     {
         try {
             return Http::withHeaders([
-                    'User-Agent'      => config('app.name', 'Laravel') . '-Crawler/1.0',
+                    'User-Agent'      => self::userAgent(),
                     'Accept'          => 'text/html,application/xhtml+xml',
                     'Accept-Language' => 'zh-CN,zh;q=0.9,en;q=0.8',
                 ])
                 ->timeout(15)
                 ->withOptions([
-                    'connect_timeout'  => 5,
-                    'allow_redirects'  => false,      // 手动处理重定向
-                    'on_headers'       => function (ResponseInterface $r) {
+                    'connect_timeout' => 5,
+                    'allow_redirects' => false,       // 手动处理重定向
+                    'on_headers'      => function (ResponseInterface $r) {
                         if ((int) $r->getHeaderLine('Content-Length') > self::MAX_BYTES) {
                             throw new CrawlException('页面内容过大');
                         }
@@ -84,11 +92,31 @@ class PageFetcher
             if ($e->getPrevious() instanceof CrawlException) {
                 throw $e->getPrevious();
             }
-            \Log::warning('crawler request failed', ['url' => $url, 'error' => $e->getMessage()]);
+            Log::warning('crawler request failed', ['url' => $url, 'error' => $e->getMessage()]);
             throw new CrawlException(
                 '请求失败，请检查网址是否可以访问'
-                    . (config('app.debug') ? '（' . $e->getMessage() . '）' : '')
+                . (config('app.debug') ? '(' . $e->getMessage() . ')' : '')
             );
+        }
+    }
+
+    /**
+     * 识别验证码 / 拦截页（启发式）。识别到就停止，不做任何绕过。
+     */
+    private function assertNotBlocked(string $url, string $html): void
+    {
+        $host  = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $path  = strtolower((string) parse_url($url, PHP_URL_PATH));
+        $title = '';
+        if (preg_match('~<title[^>]*>(.*?)</title>~is', $html, $m)) {
+            $title = trim(strip_tags($m[1]));
+        }
+
+        $byUrl   = str_starts_with($host, 'wappass.') || str_contains($path, 'captcha');
+        $byTitle = $title !== '' && preg_match('~安全验证|人机验证|访问验证|Access Denied|Just a moment|Attention Required~iu', $title);
+
+        if ($byUrl || $byTitle) {
+            throw new BlockedException('目标站点触发了验证 / 反爬页面（' . ($title ?: $host) . '），无法抓取');
         }
     }
 
@@ -117,7 +145,6 @@ class PageFetcher
             } catch (Throwable $e) {
                 // 未知编码，保持原样
             }
-            // 避免解析器再按 meta 里的旧编码重新解释一遍
             $body = preg_replace('/(<meta[^>]+charset=["\']?)[\w-]+/i', '$1utf-8', $body, 1);
         }
 
