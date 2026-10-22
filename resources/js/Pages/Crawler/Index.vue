@@ -6,7 +6,7 @@ import StatusBadge from '@/Components/Crawler/StatusBadge.vue'
 const props = defineProps({ tasks: { type: Object, required: true } })
 
 const hasActive = computed(() =>
-    props.tasks.data.some((t) => ['pending', 'running'].includes(t.status)),
+    props.tasks.data.some((t) => ['pending', 'running', 'cancelling'].includes(t.status)),
 )
 
 // 有进行中的任务时，每 3 秒刷新一次列表

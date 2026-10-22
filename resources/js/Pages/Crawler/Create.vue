@@ -12,10 +12,11 @@ const form = useForm({
     name: '',
     start_urls_text: '',
     url_pattern: '',
+    follow_pattern: '',
     fields: [newField()],
     max_pages: 100,
     max_depth: 2,
-    delay_ms: 800,
+    delay_ms: 500,
     respect_robots: true,
 })
 
@@ -90,6 +91,15 @@ const input = 'w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-
                 <label class="mb-1 block text-sm font-medium text-gray-700">URL 匹配正则</label>
                 <input v-model="form.url_pattern" :class="input" placeholder="^https://example\.com/blog/\d+" />
                 <p class="mt-1 text-xs text-gray-500">只有网址符合这个规则的页面才会提取内容；不用写 / 分隔符。</p>
+            </div>
+
+            <div>
+                <label class="mb-1 block text-sm font-medium text-gray-700">跟进链接规则（可选，强烈建议填写）</label>
+                <input v-model="form.follow_pattern" :class="input" placeholder="^https://example\.com/forum-10-\d+\.html" />
+                <p class="mt-1 text-xs text-gray-500">
+                    填写后，只有匹配「URL 匹配正则」或这个规则的链接才会被请求，其余链接直接丢弃，速度会快很多。
+                    例如从版块列表页出发，这里填列表翻页的网址规则。留空则会跟进所有同域名链接（很慢）。
+                </p>
             </div>
         </section>
 

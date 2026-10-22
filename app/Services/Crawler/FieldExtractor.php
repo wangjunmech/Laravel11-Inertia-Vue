@@ -50,23 +50,40 @@ class FieldExtractor
     }
 
     /**
-     * 页面里所有 <a href> 的原始值（相对路径由 UrlGuard::absolute 处理）
+     * 页面里所有 <a href> 的原始值（相对路径由 UrlGuard::absolute 处理）。
+     *
+     * 这里用正则而不是完整解析 DOM：论坛页面很大，建 DOM 比正则慢得多，
+     * 而且大部分页面只是用来找链接，根本不需要提取内容。
      *
      * @return string[]
      */
     public function links(string $html): array
     {
-        if (trim($html) === '') {
+        if ($html === '' || !preg_match_all(
+            '~<a\s(?:[^>]*?\s)?href\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))~i',
+            $html,
+            $matches,
+            PREG_SET_ORDER
+        )) {
             return [];
         }
 
-        try {
-            return array_values(array_filter(
-                QueryList::html($html)->find('a')->attrs('href')->all(),
-                fn ($h) => is_string($h) && $h !== ''
-            ));
-        } catch (Throwable $e) {
-            return [];
+        $links = [];
+        foreach ($matches as $m) {
+            $href = $m[1] ?? '';
+            if ($href === '') {
+                $href = $m[2] ?? '';
+            }
+            if ($href === '') {
+                $href = $m[3] ?? '';
+            }
+
+            $href = trim(html_entity_decode($href, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            if ($href !== '') {
+                $links[] = $href;
+            }
         }
+
+        return array_values(array_unique($links));
     }
 }

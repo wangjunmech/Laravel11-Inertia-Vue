@@ -8,7 +8,7 @@ const props = defineProps({
     sample: { type: Array, default: () => [] },
 })
 
-const active = computed(() => ['pending', 'running'].includes(props.task.status))
+const active = computed(() => ['pending', 'running', 'cancelling'].includes(props.task.status))
 
 // 进行中每 2 秒只刷新 task（不读结果文件）；结束时再完整刷新一次
 let timer = null
@@ -60,10 +60,18 @@ const typeLabel = { text: '文本', html: 'HTML', attr: '属性' }
 
             <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-700">
                 <span>已提取 {{ task.crawled }} / 上限 {{ task.max_pages }}</span>
+                <span>已请求 {{ task.fetched }} 页</span>
                 <span :class="task.failed ? 'text-red-600' : ''">失败 {{ task.failed }}</span>
                 <span v-if="task.started_at">开始：{{ task.started_at }}</span>
                 <span v-if="task.finished_at">结束：{{ task.finished_at }}</span>
             </div>
+
+            <p
+                v-if="!task.follow_pattern && task.fetched >= 20 && task.crawled * 3 < task.fetched"
+                class="text-xs text-amber-700"
+            >
+                请求的页面里大部分并不是目标页，建议新建任务时填写「跟进链接规则」，只抓需要的页面。
+            </p>
 
             <p v-if="task.status === 'running' && task.current_url" class="break-all text-xs text-gray-500">
                 正在处理：{{ task.current_url }}
@@ -79,6 +87,10 @@ const typeLabel = { text: '文本', html: 'HTML', attr: '属性' }
                 {{ task.error }}
             </p>
 
+            <p v-if="task.status === 'cancelling'" class="rounded-md bg-amber-50 p-3 text-sm text-amber-800">
+                已发出取消请求，会在当前页面处理完后停止。如果队列 worker 已经停止运行，5 分钟后再点一次「再次取消」即可强制结束。
+            </p>
+
             <div class="flex flex-wrap gap-3 pt-1">
                 <button
                     v-if="active"
@@ -86,7 +98,7 @@ const typeLabel = { text: '文本', html: 'HTML', attr: '属性' }
                     class="rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50"
                     @click="cancel"
                 >
-                    取消任务
+                    {{ task.status === 'cancelling' ? '再次取消' : '取消任务' }}
                 </button>
                 <template v-if="task.can_download">
                     <a
@@ -115,6 +127,11 @@ const typeLabel = { text: '文本', html: 'HTML', attr: '属性' }
 
                 <dt class="text-gray-500">URL 正则</dt>
                 <dd class="break-all font-mono text-xs text-gray-800">{{ task.url_pattern }}</dd>
+
+                <dt class="text-gray-500">跟进规则</dt>
+                <dd class="break-all font-mono text-xs text-gray-800">
+                    {{ task.follow_pattern || '未设置（跟进所有同域名链接）' }}
+                </dd>
 
                 <dt class="text-gray-500">抓取字段</dt>
                 <dd class="space-y-1 text-gray-800">

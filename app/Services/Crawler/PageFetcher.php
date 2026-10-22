@@ -51,7 +51,7 @@ class PageFetcher
 
             $type = (string) $response->header('Content-Type');
             if ($type !== '' && !preg_match('~text/html|application/xhtml~i', $type)) {
-                throw new CrawlException('目标不是 HTML 页面（' . $type . ')');
+                throw new CrawlException('目标不是 HTML 页面（' . $type . '）');
             }
 
             $body = $response->body();
@@ -76,7 +76,7 @@ class PageFetcher
                     'Accept'          => 'text/html,application/xhtml+xml',
                     'Accept-Language' => 'zh-CN,zh;q=0.9,en;q=0.8',
                 ])
-                ->timeout(15)
+                ->timeout(10)
                 ->withOptions([
                     'connect_timeout' => 5,
                     'allow_redirects' => false,       // 手动处理重定向
@@ -86,7 +86,7 @@ class PageFetcher
                         }
                     },
                 ])
-                ->retry(2, 300, null, false)          // 失败重试 2 次，不抛异常
+                ->retry(2, 200, null, false)          // 失败重试 2 次，不抛异常
                 ->get($url);
         } catch (Throwable $e) {
             if ($e->getPrevious() instanceof CrawlException) {
@@ -95,7 +95,7 @@ class PageFetcher
             Log::warning('crawler request failed', ['url' => $url, 'error' => $e->getMessage()]);
             throw new CrawlException(
                 '请求失败，请检查网址是否可以访问'
-                . (config('app.debug') ? '(' . $e->getMessage() . ')' : '')
+                . (config('app.debug') ? '（' . $e->getMessage() . '）' : '')
             );
         }
     }

@@ -47,7 +47,7 @@ class CrawlTaskController extends Controller
         $user = $request->user();
 
         $active = CrawlTask::where('user_id', $user->id)
-            ->whereIn('status', ['pending', 'running'])
+            ->whereIn('status', ['pending', 'running', 'cancelling'])
             ->count();
 
         if ($active >= self::MAX_ACTIVE_TASKS) {
@@ -63,6 +63,7 @@ class CrawlTaskController extends Controller
             'name'           => $d['name'],
             'start_urls'     => array_values($d['start_urls']),
             'url_pattern'    => $d['url_pattern'],
+            'follow_pattern' => filled($d['follow_pattern'] ?? null) ? $d['follow_pattern'] : null,
             'fields'         => array_map(fn ($f) => [
                 'name'     => $f['name'],
                 'selector' => $f['selector'],
@@ -97,10 +98,20 @@ class CrawlTaskController extends Controller
     {
         Gate::authorize('cancel', $task);
 
-        if (!$task->isFinished()) {
-            $task->update(
-                ['status' => 'cancelled'] + ($task->status === 'pending' ? ['finished_at' => now()] : [])
-            );
+        if ($task->isFinished()) {
+            return back();
+        }
+
+        // worker 每处理一页都会刷新 updated_at；超过 5 分钟没动静，说明 worker 已经停了
+        $workerGone = $task->updated_at && $task->updated_at->lt(now()->subMinutes(5));
+
+        if ($task->status === 'pending' || $workerGone) {
+            // 还没开始执行，或没人在执行：直接结束
+            // （pending 的任务稍后被 worker 取到时，会因为状态不是 pending 而直接跳过）
+            $task->update(['status' => 'cancelled', 'finished_at' => now(), 'current_url' => null]);
+        } else {
+            // 正在运行：只发出取消请求，由 worker 在检查点停止，并写入最终的 cancelled 状态
+            $task->update(['status' => 'cancelling']);
         }
 
         return back();
@@ -174,6 +185,7 @@ class CrawlTaskController extends Controller
             'status'       => $t->status,
             'crawled'      => $t->crawled,
             'failed'       => $t->failed,
+            'fetched'      => $t->fetched,
             'max_pages'    => $t->max_pages,
             'progress'     => $t->progressPercent(),
             'current_url'  => $t->current_url,
@@ -190,6 +202,7 @@ class CrawlTaskController extends Controller
         return $this->summary($t) + [
             'start_urls'     => $t->start_urls,
             'url_pattern'    => $t->url_pattern,
+            'follow_pattern' => $t->follow_pattern,
             'fields'         => $t->fields,
             'max_depth'      => $t->max_depth,
             'delay_ms'       => $t->delay_ms,

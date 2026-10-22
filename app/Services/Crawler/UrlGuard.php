@@ -2,9 +2,14 @@
 
 namespace App\Services\Crawler;
 
+use Illuminate\Support\Facades\Cache;
+
 class UrlGuard
 {
     private const ALLOWED_PORTS = [80, 443, 8080, 8443];
+
+    /** @var array<string, string[]> 同一个实例内的 DNS 结果缓存 */
+    private array $dnsMemo = [];
 
     /**
      * SSRF 防护：只允许 http/https、常见端口，且域名不能解析到内网/保留地址。
@@ -149,12 +154,31 @@ class UrlGuard
         return $result === 1;
     }
 
+    /** DNS 解析结果缓存 2 分钟，避免每个请求前都查一次（Windows 上可能要几百毫秒） */
     private function resolve(string $host): array
     {
-        $ips = [];
-        foreach ((@dns_get_record($host, DNS_A | DNS_AAAA) ?: []) as $r) {
-            $ips[] = $r['ip'] ?? $r['ipv6'] ?? null;
+        if (isset($this->dnsMemo[$host])) {
+            return $this->dnsMemo[$host];
         }
-        return array_values(array_filter($ips));
+
+        $key = 'crawler:dns:' . md5($host);
+        $ips = Cache::get($key);
+
+        if (!is_array($ips) || $ips === []) {
+            $ips = [];
+            foreach ((@dns_get_record($host, DNS_A | DNS_AAAA) ?: []) as $r) {
+                $ips[] = $r['ip'] ?? $r['ipv6'] ?? null;
+            }
+            $ips = array_values(array_filter($ips));
+
+            if ($ips === []) {
+                $ips = array_values(array_filter((array) (@gethostbynamel($host) ?: [])));
+            }
+            if ($ips !== []) {
+                Cache::put($key, $ips, 120);
+            }
+        }
+
+        return $ips === [] ? [] : ($this->dnsMemo[$host] = $ips);
     }
 }

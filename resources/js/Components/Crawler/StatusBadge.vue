@@ -8,6 +8,7 @@ const map = {
     running: ['抓取中', 'bg-blue-100 text-blue-700'],
     done: ['已完成', 'bg-green-100 text-green-700'],
     failed: ['失败', 'bg-red-100 text-red-700'],
+    cancelling: ['取消中', 'bg-amber-100 text-amber-800'],
     cancelled: ['已取消', 'bg-amber-100 text-amber-800'],
 }
 

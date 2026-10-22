@@ -18,6 +18,15 @@ class StoreCrawlTaskRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:100'],
 
+            // 可选：只跟进匹配这个规则（或 URL 匹配正则）的链接，其余直接丢弃
+            'follow_pattern' => ['nullable', 'string', 'max:500', function ($attr, $value, $fail) {
+                try {
+                    app(UrlGuard::class)->compilePattern($value);
+                } catch (CrawlException $e) {
+                    $fail($e->getMessage());
+                }
+            }],
+
             'start_urls'   => ['required', 'array', 'min:1', 'max:20'],
             'start_urls.*' => ['required', 'string', 'max:2048', 'starts_with:http://,https://', 'distinct', function ($attr, $value, $fail) {
                 try {
@@ -57,6 +66,7 @@ class StoreCrawlTaskRequest extends FormRequest
             'start_urls'         => '起始网址',
             'start_urls.*'       => '起始网址',
             'url_pattern'        => 'URL 正则',
+            'follow_pattern'     => '跟进链接规则',
             'fields'             => '抓取字段',
             'fields.*.name'      => '字段名',
             'fields.*.selector'  => '选择器',

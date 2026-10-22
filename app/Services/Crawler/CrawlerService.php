@@ -35,7 +35,7 @@ class CrawlerService
 
         $task->update([
             'status' => 'running', 'started_at' => now(), 'finished_at' => null,
-            'crawled' => 0, 'failed' => 0, 'error' => null, 'output_path' => null,
+            'crawled' => 0, 'failed' => 0, 'fetched' => 0, 'error' => null, 'output_path' => null,
         ]);
 
         $fh = fopen($jsonlAbs, 'wb');           // wb：重跑时会清空旧结果
@@ -46,11 +46,15 @@ class CrawlerService
 
         $crawled = 0;
         $failed  = 0;
+        $fetched = 0;
         $final   = 'done';
         $error   = null;
 
         try {
             $regex = $this->guard->compilePattern($task->url_pattern);
+            $followRegex = filled($task->follow_pattern)
+                ? $this->guard->compilePattern($task->follow_pattern)
+                : null;
 
             $queue = new SplQueue();
             $seen  = [];   // 已入队的 URL
@@ -81,6 +85,7 @@ class CrawlerService
 
             while (!$queue->isEmpty() && $crawled < $task->max_pages && $fetched < $maxFetch) {
                 if ($this->isCancelled($task)) {
+                    Log::info('crawler cancel detected', ['task' => $task->id, 'at' => 'loop-start']);
                     $final = 'cancelled';
                     break;
                 }
@@ -100,6 +105,13 @@ class CrawlerService
                 try {
                     $page     = $this->fetcher->fetch($url);
                     $blocks   = 0;
+
+                    // 请求期间收到了取消：丢弃这一页，立刻结束
+                    if ($this->isCancelled($task)) {
+                        Log::info('crawler cancel detected', ['task' => $task->id, 'at' => 'after-fetch']);
+                        $final = 'cancelled';
+                        break;
+                    }
                     $finalUrl = $page['url'];
 
                     $skip = isset($done[$finalUrl])
@@ -123,7 +135,7 @@ class CrawlerService
                         }
 
                         if ($depth < $task->max_depth) {
-                            $this->enqueueLinks($queue, $seen, $hosts, $page['html'], $finalUrl, $depth + 1);
+                            $this->enqueueLinks($queue, $seen, $hosts, $page['html'], $finalUrl, $depth + 1, $regex, $followRegex, $task->max_depth);
                         }
                     }
                 } catch (BlockedException $e) {
@@ -141,9 +153,14 @@ class CrawlerService
                     Log::warning('crawler page error', ['task' => $task->id, 'url' => $url, 'error' => $e->getMessage()]);
                 }
 
-                $task->update(['crawled' => $crawled, 'failed' => $failed, 'current_url' => $url]);
+                $task->update(['crawled' => $crawled, 'failed' => $failed, 'fetched' => $fetched, 'current_url' => $url]);
 
-                usleep($waitMs * 1000);
+                // 请求间隔分段等待，期间也能响应取消
+                if ($this->pause($task, $waitMs)) {
+                    Log::info('crawler cancel detected', ['task' => $task->id, 'at' => 'pause']);
+                    $final = 'cancelled';
+                    break;
+                }
             }
         } catch (CrawlException $e) {
             $final = 'failed';
@@ -166,18 +183,35 @@ class CrawlerService
         $this->buildJson($jsonlAbs, $jsonAbs);
 
         $task->update([
-            'status' => $final, 'crawled' => $crawled, 'failed' => $failed,
+            'status' => $final, 'crawled' => $crawled, 'failed' => $failed, 'fetched' => $fetched,
             'current_url' => null, 'output_path' => $jsonRel,
             'finished_at' => now(), 'error' => $error,
         ]);
     }
 
-    private function enqueueLinks(SplQueue $queue, array &$seen, array $hosts, string $html, string $baseUrl, int $depth): void
-    {
+    /**
+     * 把页面里的链接放进待抓队列。
+     *
+     * - 设置了跟进规则：只有「目标页（匹配 URL 正则）」或「匹配跟进规则」的链接才入队，其余直接丢弃
+     * - 没设置：跟进所有同域名链接（保持原行为）
+     * - 已经到最大深度时，再往下的页面不会被继续跟进，所以非目标页没有抓取价值，直接不入队
+     */
+    private function enqueueLinks(
+        SplQueue $queue,
+        array &$seen,
+        array $hosts,
+        string $html,
+        string $baseUrl,
+        int $depth,
+        string $regex,
+        ?string $followRegex,
+        int $maxDepth
+    ): void {
         foreach ($this->extractor->links($html) as $href) {
             if ($queue->count() >= self::MAX_QUEUE) {
                 return;
             }
+
             $abs = $this->guard->absolute($baseUrl, $href);
             if ($abs === null || isset($seen[$abs]) || !str_starts_with($abs, 'http')) {
                 continue;
@@ -185,6 +219,16 @@ class CrawlerService
             if (!isset($hosts[$this->host($abs)]) || preg_match(self::SKIP_EXT, $abs)) {
                 continue;
             }
+
+            $isTarget = preg_match($regex, $abs) === 1;
+
+            if ($followRegex !== null && !$isTarget && preg_match($followRegex, $abs) !== 1) {
+                continue;
+            }
+            if ($depth >= $maxDepth && !$isTarget) {
+                continue;
+            }
+
             $seen[$abs] = true;
             $queue->enqueue([$abs, $depth]);
         }
@@ -215,9 +259,25 @@ class CrawlerService
         fclose($out);
     }
 
+    /** 控制器收到取消请求时会把状态改成 cancelling（运行中）或 cancelled（未开始） */
     private function isCancelled(CrawlTask $task): bool
     {
-        return CrawlTask::whereKey($task->id)->value('status') === 'cancelled';
+        return in_array(CrawlTask::whereKey($task->id)->value('status'), ['cancelling', 'cancelled'], true);
+    }
+
+    /** 等待 $ms 毫秒，每 0.5 秒检查一次是否被取消；被取消返回 true */
+    private function pause(CrawlTask $task, int $ms): bool
+    {
+        $end = microtime(true) + $ms / 1000;
+
+        while (($left = $end - microtime(true)) > 0) {
+            usleep((int) (min($left, 0.5) * 1_000_000));
+            if ($this->isCancelled($task)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function host(string $url): string

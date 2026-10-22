@@ -42,9 +42,18 @@ class RunCrawlJob implements ShouldQueue
 
     public function failed(Throwable $e): void
     {
-        $this->task->update([
-            'status'      => 'failed',
-            'error'       => Str::limit($e->getMessage(), 300),
+        $task = $this->task->fresh();
+
+        // 已经有最终状态（比如已取消）就不要再覆盖
+        if (!$task || $task->isFinished()) {
+            return;
+        }
+
+        $cancelling = $task->status === 'cancelling';
+
+        $task->update([
+            'status'      => $cancelling ? 'cancelled' : 'failed',
+            'error'       => $cancelling ? null : Str::limit($e->getMessage(), 300),
             'finished_at' => now(),
         ]);
     }
