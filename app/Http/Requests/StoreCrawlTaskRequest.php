@@ -55,6 +55,7 @@ class StoreCrawlTaskRequest extends FormRequest
             'max_pages'      => ['required', 'integer', 'between:1,1000'],
             'max_depth'      => ['required', 'integer', 'between:0,5'],
             'delay_ms'       => ['required', 'integer', 'between:200,10000'],
+            'concurrency'    => ['required', 'integer', 'in:1,2,3,5'],
             'respect_robots' => ['required', 'boolean'],
         ];
     }
@@ -75,6 +76,7 @@ class StoreCrawlTaskRequest extends FormRequest
             'max_pages'          => '最大页数',
             'max_depth'          => '最大深度',
             'delay_ms'           => '请求间隔',
+            'concurrency'        => '并发数',
             'respect_robots'     => '遵守 robots.txt',
         ];
     }

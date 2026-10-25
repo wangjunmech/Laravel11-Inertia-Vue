@@ -9,7 +9,7 @@ class CrawlTask extends Model
 {
     protected $fillable = [
         'user_id', 'name', 'start_urls', 'url_pattern', 'follow_pattern', 'fields',
-        'max_pages', 'max_depth', 'delay_ms', 'respect_robots',
+        'max_pages', 'max_depth', 'delay_ms', 'concurrency', 'respect_robots',
         'status', 'crawled', 'failed', 'fetched', 'output_path', 'error',
         'started_at', 'finished_at', 'current_url',
     ];

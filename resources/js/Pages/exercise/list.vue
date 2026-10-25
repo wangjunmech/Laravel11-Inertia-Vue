@@ -39,7 +39,7 @@ const goTo = (path) => {
 
       <div class="item">
         <button @click="goTo('e4')">
-          4--Image snippet 图片上传浏览
+          4--Image snippet 图片上传浏览+点击弹出模态框组件ESC关闭
         </button>
       </div>
 
@@ -228,6 +228,11 @@ const goTo = (path) => {
       <div class="item">
         <button @click="goTo('e36')">
           36--模具规格书
+        </button>
+      </div>
+      <div class="item">
+        <button @click="goTo('e37')">
+          37--常用国内外模具钢材品牌型号
         </button>
       </div>
 

@@ -8,16 +8,28 @@ import FieldRow from '@/Components/Crawler/FieldRow.vue'
 
 const newField = () => ({ name: '', selector: '', type: 'text', attr: '', multiple: false })
 
+//弹窗显示控制
+const showModal = ref(false)
+const handleOk = () => {
+  console.log('确认')
+  showModal.value = false
+}
+
+const props = defineProps({ prefill: { type: Object, default: null } })
+
+// 从已有任务"修改并创建新任务"进来时，用原任务的设置初始化表单
+const p = props.prefill
 const form = useForm({
-    name: '',
-    start_urls_text: '',
-    url_pattern: '',
-    follow_pattern: '',
-    fields: [newField()],
-    max_pages: 100,
-    max_depth: 2,
-    delay_ms: 500,
-    respect_robots: true,
+    name: p?.name ?? '',
+    start_urls_text: p?.start_urls?.join('\n') ?? '',
+    url_pattern: p?.url_pattern ?? '',
+    follow_pattern: p?.follow_pattern ?? '',
+    fields: p?.fields?.length ? p.fields.map((f) => ({ ...f, attr: f.attr ?? '' })) : [newField()],
+    max_pages: p?.max_pages ?? 100,
+    max_depth: p?.max_depth ?? 2,
+    delay_ms: p?.delay_ms ?? 500,
+    concurrency: p?.concurrency ?? 1,
+    respect_robots: p?.respect_robots ?? true,
 })
 
 const startUrls = computed(() =>
@@ -67,13 +79,120 @@ const input = 'w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-
 </script>
 
 <template>
-    <Head title="新建抓取任务" />
+    <Head :title="prefill ? '修改并创建新任务' : '新建抓取任务'" />
+    <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[999]" @click.self="showModal = false">
+  <!-- 弹窗主体：宽600px，高520px，flex纵向排布，用来做固定头尾+滚动内容 -->
+  <div class="bg-white w-4/5 h-[520px] rounded-lg flex flex-col p-4">
+    <!-- 头部 -->
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="text-lg font-medium">抓取任务填写说明</h3>
+    </div>
+    <div>选择器示例，抓取表格的tobdy中的第一个tr下的第2个td的写法:<span class="bg-red-100 text-red-600 rounded-md px-2">tbody tr:nth-child(1) td:nth-child(2)</span></div>
+
+    <!-- 内容区：flex-1占剩余高度，overflow-y-auto 超出自动出滚动条 -->
+    <div class="flex-1 overflow-y-auto">
+        <div class="bg-yellow-100">
+            要抓的是 forum-48-1.html、forum-48-2.html…这一整个系列页面本身，所以这些页面既是"要提取内容的目标页"，又是"要跟进的翻页链接"。
+            <table class="border border-blue-300 px-3 py-2 text-left">
+                <thead>
+                    <tr>
+                        <th class="border border-blue-300 px-3 py-2 text-left">输入项</th>
+                        <th class="border border-blue-300 px-3 py-2 text-left">填写内容（域名换成你的站点，下面以 www.mjzl.cn 为例）</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="border border-blue-300 px-3 py-2 text-left">起始网址</td>
+                        <td class="border border-blue-300 px-3 py-2 text-left">https://www.mjzl.cn/forum-48-1.html</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-blue-300 px-3 py-2 text-left">URL 匹配正则</td>
+                        <td class="border border-blue-300 px-3 py-2 text-left">^https?://www\.mjzl\.cn/forum-48-\d+\.html$</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-blue-300 px-3 py-2 text-left">跟进链接规则</td>
+                        <td class="border border-blue-300 px-3 py-2 text-left">填一样的：^https?://www\.mjzl\.cn/forum-48-\d+\.html$</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-blue-300 px-3 py-2 text-left">最大页数</td>
+                        <td class="border border-blue-300 px-3 py-2 text-left">设成不小于总页数，它只是上限</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-blue-300 px-3 py-2 text-left">最大深度</td>
+                        <td class="border border-blue-300 px-3 py-2 text-left">最大深度上限是 5，页数很多时可能走不完。如果任务结束时"已提取"数量少于总页数，就是这个原因</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-blue-300 px-3 py-2 text-left">并发数</td>
+                        <td class="border border-blue-300 px-3 py-2 text-left">2 或 3，最大为5</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-blue-300 px-3 py-2 text-left">抓取字段</td>
+                        <td class="border border-blue-300 px-3 py-2 text-left">按需填写</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="bg-red-100 mt-4">
+            要提取内容的目标页是forum-48-1.html、forum-48-2.html…这些页面里面的类名为class="s xst"的链接。
+            <table class="border border-blue-300 px-3 py-2 text-left">
+                <thead>
+                    <tr>
+                        <th class="border border-blue-300 px-3 py-2 text-left">输入项</th>
+                        <th class="border border-blue-300 px-3 py-2 text-left">填写内容（域名换成你的站点，下面以 www.mjzl.cn 为例）</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="border border-blue-300 px-3 py-2 text-left">起始网址</td>
+                        <td class="border border-blue-300 px-3 py-2 text-left">https://www.mjzl.cn/forum-48-1.html</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-blue-300 px-3 py-2 text-left">URL 匹配正则</td>
+                        <td class="border border-blue-300 px-3 py-2 text-left">^https?://www\.mjzl\.cn/thread-\d+-1-1\.html$</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-blue-300 px-3 py-2 text-left">跟进链接规则</td>
+                        <td class="border border-blue-300 px-3 py-2 text-left">^https?://www\.mjzl\.cn/forum-48-\d+\.html$</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-blue-300 px-3 py-2 text-left">最大页数</td>
+                        <td class="border border-blue-300 px-3 py-2 text-left">设成不小于总页数，它只是上限</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-blue-300 px-3 py-2 text-left">最大深度</td>
+                        <td class="border border-blue-300 px-3 py-2 text-left">最大深度上限是 5，页数很多时可能走不完。如果任务结束时"已提取"数量少于总页数，就是这个原因</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-blue-300 px-3 py-2 text-left">并发数</td>
+                        <td class="border border-blue-300 px-3 py-2 text-left">2 或 3，最大为5</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-blue-300 px-3 py-2 text-left">抓取字段</td>
+                        <td class="border border-blue-300 px-3 py-2 text-left">选择器按帖子页的结构写，不是列表页</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 底部按钮 -->
+    <div class="mt-4 flex justify-end gap-2">
+      <button @click="showModal = false" class="px-3 py-1 border rounded">取消</button>
+      <button @click="handleOk" class="px-3 py-1 bg-blue-500 text-white rounded">确定</button>
+    </div>
+  </div>
+</div>
 
     <div class="mx-auto max-w-4xl space-y-6 p-6">
         <div class="flex items-center justify-between">
-            <h1 class="text-xl font-semibold text-gray-900">新建抓取任务</h1>
+            <h1 class="text-xl font-semibold text-gray-900">{{ prefill ? '修改并创建新任务' : '新建抓取任务' }}</h1>
+            <button class="btn bg-red-200 p-2 rounded-full" @click="showModal = true">任务填写说明</button>
             <Link href="/crawler" class="text-sm text-indigo-600 hover:underline">返回任务列表</Link>
         </div>
+
+        <p v-if="prefill" class="rounded-md bg-indigo-50 p-3 text-sm text-indigo-800">
+            已带入原任务的设置。修改后点「创建并开始抓取」会生成一个新任务，原任务和它的结果不会受影响。
+        </p>
 
         <section class="space-y-4 rounded-lg border border-gray-200 bg-white p-5">
             <div>
@@ -118,7 +237,7 @@ const input = 'w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-
         </section>
 
         <section class="rounded-lg border border-gray-200 bg-white p-5">
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                     <label class="mb-1 block text-sm font-medium text-gray-700">最大页数</label>
                     <input v-model.number="form.max_pages" type="number" min="1" max="1000" :class="input" />
@@ -133,6 +252,16 @@ const input = 'w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-
                     <label class="mb-1 block text-sm font-medium text-gray-700">请求间隔（毫秒）</label>
                     <input v-model.number="form.delay_ms" type="number" min="200" max="10000" step="100" :class="input" />
                     <p class="mt-1 text-xs text-gray-500">最小 200，间隔越大对站点越友好</p>
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-gray-700">并发数</label>
+                    <select v-model="form.concurrency" :class="input">
+                        <option :value="1">1（逐页抓取）</option>
+                        <option :value="2">2</option>
+                        <option :value="3">3</option>
+                        <option :value="5">5</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">同时请求的页面数，越大越快，对站点的压力也越大</p>
                 </div>
             </div>
 

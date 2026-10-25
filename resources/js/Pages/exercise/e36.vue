@@ -116,10 +116,10 @@
     <div class="">
       <div class="cascader-box rounded-lg relative p-2">
         <CascaderMenu
-          v-model="material"
-          dict-type="material"
+          v-model="steels"
+          dict-type="steels"
           title="模具钢材选择："
-          @select="onMaterialSelect"
+          @select="onsteelsSelect"
           @save="handleDictSave"          
         />
         <hr class="mb-6">
@@ -189,30 +189,14 @@
 import { ref,onMounted } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import CascaderMenu from '@/Components/CascaderMenu.vue'
+import { steelsData, processesData, surfaceProcessesData } from "@/Components/data/Mold_Spec.js"
 //引入写死的测试数据文件
-const material = ref([])
-material.value =  [
-    // e26 一级：基础材料大类 pid=0
-    { id: 1, area: '金属材料', pid: 0 },
-    { id: 2, area: '高分子塑料', pid: 0 },
-]
-
-const processes = ref([])
-processes.value = [
-    // e26 一级：基础材料大类 pid=0
-    { id: 1, area: '金属材料', pid: 0 },
-    { id: 2, area: '高分子塑料', pid: 0 },
-]
-
-const surfaceProcesses = ref([])
-surfaceProcesses.value = [
-    // e26 一级：基础材料大类 pid=0
-    { id: 1, area: '金属材料', pid: 0 },
-    { id: 2, area: '高分子塑料', pid: 0 },
-]
+const steels = ref(steelsData)
+const processes = ref(processesData)
+const surfaceProcesses = ref(surfaceProcessesData)
 
 //用于监听选择的变量声明
-const selectedMaterial = ref(null)
+const selectedsteels = ref(null)
 const selectedProcess = ref(null)
 const selectedSurfaceProcess = ref(null)
 
@@ -226,7 +210,7 @@ const form = useForm({
 // async function loadAllDict() {
 //   const opts = { headers: { Accept: 'application/json' }, credentials: 'same-origin' }
 //   const [matRes, procRes, surfRes] = await Promise.all([
-//     fetch('/process-dict-tree/material', opts),
+//     fetch('/process-dict-tree/steels', opts),
 //     fetch('/process-dict-tree/process', opts),
 //     fetch('/process-dict-tree/surface_process', opts),
 //   ])
@@ -234,17 +218,17 @@ const form = useForm({
 //     throw new Error('加载字典失败')
 //   }
 //   const [m, p, s] = await Promise.all([matRes.json(), procRes.json(), surfRes.json()])
-//   material.value = Array.isArray(m) ? m : []
+//   steels.value = Array.isArray(m) ? m : []
 //   processes.value = Array.isArray(p) ? p : []
 //   surfaceProcesses.value = Array.isArray(s) ? s : []
 // }
 
-const onMaterialSelect = ({ item, path }) => { selectedMaterial.value = path }
+const onsteelsSelect = ({ item, path }) => { selectedsteels.value = path }
 const onProcessSelect  = ({ item, path }) => { selectedProcess.value = path }
 const onSurfaceProcessSelect = ({ item, path }) => { selectedSurfaceProcess.value = path }
 
 const showData = () => {
-  console.log('材料', JSON.stringify(material.value, null, 2))
+  console.log('模具钢材', JSON.stringify(steels.value, null, 2))
   console.log('成型工艺', JSON.stringify(processes.value, null, 2))
  }
 

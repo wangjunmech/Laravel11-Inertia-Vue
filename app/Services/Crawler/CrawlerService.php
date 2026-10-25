@@ -14,6 +14,7 @@ class CrawlerService
     private const FETCH_FACTOR = 5;
     private const MAX_QUEUE = 50000;
     private const MAX_CONSECUTIVE_BLOCKS = 5;
+    private const MAX_CONCURRENCY = 5;
     private const SKIP_EXT = '~\.(jpe?g|png|gif|webp|svg|ico|bmp|pdf|zip|rar|7z|gz|tar|exe|dmg|apk|mp3|mp4|avi|mov|wmv|flv|css|js|json|xml|docx?|xlsx?|pptx?)(\?.*)?$~i';
 
     public function __construct(
@@ -55,6 +56,7 @@ class CrawlerService
             $followRegex = filled($task->follow_pattern)
                 ? $this->guard->compilePattern($task->follow_pattern)
                 : null;
+            $concurrency = max(1, min(self::MAX_CONCURRENCY, (int) $task->concurrency));
 
             $queue = new SplQueue();
             $seen  = [];   // 已入队的 URL
@@ -79,9 +81,8 @@ class CrawlerService
                 }
             }
 
-            $fetched   = 0;
-            $maxFetch  = max($task->max_pages * self::FETCH_FACTOR, 50);
-            $blocks    = 0;
+            $maxFetch = max($task->max_pages * self::FETCH_FACTOR, 50);
+            $blocks   = 0;
 
             while (!$queue->isEmpty() && $crawled < $task->max_pages && $fetched < $maxFetch) {
                 if ($this->isCancelled($task)) {
@@ -90,39 +91,45 @@ class CrawlerService
                     break;
                 }
 
-                [$url, $depth] = $queue->dequeue();
-
-                if ($task->respect_robots && !$this->robots->allowed($url)) {
+                // 取出一批（最多 $concurrency 个）一起并发请求
+                [$batch, $robotDelay] = $this->nextBatch($queue, $task, $concurrency, $maxFetch - $fetched);
+                if ($batch === []) {
                     continue;
                 }
 
-                $fetched++;
-                $waitMs = $task->delay_ms;
-                if ($task->respect_robots) {
-                    $waitMs = max($waitMs, (int) ($this->robots->crawlDelay($url) * 1000));
+                $fetched += count($batch);
+                $results  = $this->fetcher->fetchMany(array_column($batch, 0));
+
+                // 请求期间收到了取消：丢弃这一批，立刻结束
+                if ($this->isCancelled($task)) {
+                    Log::info('crawler cancel detected', ['task' => $task->id, 'at' => 'after-fetch']);
+                    $final = 'cancelled';
+                    break;
                 }
 
-                try {
-                    $page     = $this->fetcher->fetch($url);
-                    $blocks   = 0;
+                // 结果按顺序逐个处理（写文件、入队都是串行的，不会有并发问题）
+                foreach ($batch as $i => [$url, $depth]) {
+                    try {
+                        $page = $results[$i];
+                        if ($page instanceof CrawlException) {
+                            throw $page;
+                        }
 
-                    // 请求期间收到了取消：丢弃这一页，立刻结束
-                    if ($this->isCancelled($task)) {
-                        Log::info('crawler cancel detected', ['task' => $task->id, 'at' => 'after-fetch']);
-                        $final = 'cancelled';
-                        break;
-                    }
-                    $finalUrl = $page['url'];
+                        $blocks   = 0;
+                        $finalUrl = $page['url'];
 
-                    $skip = isset($done[$finalUrl])
-                        || !isset($hosts[$this->host($finalUrl)])
-                        || ($task->respect_robots && $finalUrl !== $url && !$this->robots->allowed($finalUrl));
+                        $skip = isset($done[$finalUrl])
+                            || !isset($hosts[$this->host($finalUrl)])
+                            || ($task->respect_robots && $finalUrl !== $url && !$this->robots->allowed($finalUrl));
 
-                    if (!$skip) {
+                        if ($skip) {
+                            continue;
+                        }
+
                         $done[$finalUrl] = true;
                         $seen[$finalUrl] = true;
 
-                        if (preg_match($regex, $finalUrl) === 1) {
+                        if ($crawled < $task->max_pages && preg_match($regex, $finalUrl) === 1) {
                             $res  = $this->extractor->extract($page['html'], $task->fields);
                             $line = json_encode(
                                 ['url' => $finalUrl] + $res['data'],
@@ -137,25 +144,29 @@ class CrawlerService
                         if ($depth < $task->max_depth) {
                             $this->enqueueLinks($queue, $seen, $hosts, $page['html'], $finalUrl, $depth + 1, $regex, $followRegex, $task->max_depth);
                         }
+                    } catch (BlockedException $e) {
+                        $failed++;
+                        $blocks++;
+                        Log::info('crawler blocked', ['task' => $task->id, 'url' => $url]);
+                        if ($blocks >= self::MAX_CONSECUTIVE_BLOCKS) {
+                            throw new CrawlException('目标站点连续触发验证页面，已停止抓取');
+                        }
+                    } catch (CrawlException $e) {
+                        $failed++;
+                        Log::info('crawler page failed', ['task' => $task->id, 'url' => $url, 'msg' => $e->getMessage()]);
+                    } catch (Throwable $e) {
+                        $failed++;
+                        Log::warning('crawler page error', ['task' => $task->id, 'url' => $url, 'error' => $e->getMessage()]);
                     }
-                } catch (BlockedException $e) {
-                    $failed++;
-                    $blocks++;
-                    Log::info('crawler blocked', ['task' => $task->id, 'url' => $url]);
-                    if ($blocks >= self::MAX_CONSECUTIVE_BLOCKS) {
-                        throw new CrawlException('目标站点连续触发验证页面，已停止抓取');
-                    }
-                } catch (CrawlException $e) {
-                    $failed++;
-                    Log::info('crawler page failed', ['task' => $task->id, 'url' => $url, 'msg' => $e->getMessage()]);
-                } catch (Throwable $e) {
-                    $failed++;
-                    Log::warning('crawler page error', ['task' => $task->id, 'url' => $url, 'error' => $e->getMessage()]);
                 }
 
-                $task->update(['crawled' => $crawled, 'failed' => $failed, 'fetched' => $fetched, 'current_url' => $url]);
+                $task->update([
+                    'crawled' => $crawled, 'failed' => $failed, 'fetched' => $fetched,
+                    'current_url' => $batch[array_key_last($batch)][0],
+                ]);
 
-                // 请求间隔分段等待，期间也能响应取消
+                // 每批之间的间隔；站点 robots.txt 有 Crawl-delay 时取较大值。分段等待，期间也能响应取消
+                $waitMs = max($task->delay_ms, (int) round($robotDelay * 1000));
                 if ($this->pause($task, $waitMs)) {
                     Log::info('crawler cancel detected', ['task' => $task->id, 'at' => 'pause']);
                     $final = 'cancelled';
@@ -187,6 +198,45 @@ class CrawlerService
             'current_url' => null, 'output_path' => $jsonRel,
             'finished_at' => now(), 'error' => $error,
         ]);
+    }
+
+    /**
+     * 从队列里取出下一批要请求的 URL。
+     *
+     * 站点在 robots.txt 里声明了 Crawl-delay 时，这个站点的页面不参与并发，
+     * 单独一页一页地抓，并按它要求的间隔等待。
+     *
+     * @return array{0: array<int, array{0:string,1:int}>, 1: float}  [批次, 需要遵守的 Crawl-delay 秒数]
+     */
+    private function nextBatch(SplQueue $queue, CrawlTask $task, int $size, int $room): array
+    {
+        $batch = [];
+        $delay = 0.0;
+
+        while (count($batch) < $size && count($batch) < $room && !$queue->isEmpty()) {
+            [$url, $depth] = $queue->dequeue();
+
+            if ($task->respect_robots) {
+                if (!$this->robots->allowed($url)) {
+                    continue;
+                }
+
+                $d = $this->robots->crawlDelay($url);
+                if ($d > 0) {
+                    if ($batch !== []) {
+                        $queue->unshift([$url, $depth]);   // 留到下一轮单独抓
+                        break;
+                    }
+                    $delay   = $d;
+                    $batch[] = [$url, $depth];
+                    break;
+                }
+            }
+
+            $batch[] = [$url, $depth];
+        }
+
+        return [$batch, $delay];
     }
 
     /**

@@ -62,7 +62,14 @@ function remove(t) {
                             <span v-if="t.failed" class="ml-1 text-xs text-red-600">失败 {{ t.failed }}</span>
                         </td>
                         <td class="px-4 py-3 text-gray-500">{{ t.created_at }}</td>
-                        <td class="space-x-3 px-4 py-3 text-right">
+                        <td class="space-x-3 whitespace-nowrap px-4 py-3 text-right">
+                            <Link
+                                v-if="['done', 'failed', 'cancelled'].includes(t.status)"
+                                :href="`/crawler/create?from=${t.id}`"
+                                class="text-indigo-600 hover:underline"
+                            >
+                                修改并创建新任务
+                            </Link>
                             <a v-if="t.can_download" :href="`/crawler/${t.id}/download`" class="text-indigo-600 hover:underline">
                                 下载
                             </a>

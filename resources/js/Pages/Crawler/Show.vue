@@ -114,6 +114,13 @@ const typeLabel = { text: '文本', html: 'HTML', attr: '属性' }
                         下载 JSONL
                     </a>
                 </template>
+                <Link
+                    v-if="!active"
+                    :href="`/crawler/create?from=${task.id}`"
+                    class="rounded-md border border-indigo-300 px-3 py-1.5 text-sm text-indigo-700 hover:bg-indigo-50"
+                >
+                    修改并创建新任务
+                </Link>
             </div>
         </section>
 
@@ -145,7 +152,7 @@ const typeLabel = { text: '文本', html: 'HTML', attr: '属性' }
 
                 <dt class="text-gray-500">限制</dt>
                 <dd class="text-gray-800">
-                    最大深度 {{ task.max_depth }}，请求间隔 {{ task.delay_ms }} ms，
+                    最大深度 {{ task.max_depth }}，请求间隔 {{ task.delay_ms }} ms，并发 {{ task.concurrency }}，
                     {{ task.respect_robots ? '遵守 robots.txt' : '未启用 robots.txt 检查' }}
                 </dd>
             </dl>

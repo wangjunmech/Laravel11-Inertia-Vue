@@ -35,11 +35,32 @@ class CrawlTaskController extends Controller
         return Inertia::render('Crawler/Index', ['tasks' => $tasks]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
         Gate::authorize('create', CrawlTask::class);
 
-        return Inertia::render('Crawler/Create');
+        // /crawler/create?from=ID：带入已有任务的设置，改完后创建的是一个新任务，原任务不受影响
+        $prefill = null;
+        if ($request->filled('from')) {
+            $from = CrawlTask::find($request->integer('from'));
+            if ($from) {
+                Gate::authorize('view', $from);
+                $prefill = [
+                    'name'           => $from->name . '（副本）',
+                    'start_urls'     => $from->start_urls,
+                    'url_pattern'    => $from->url_pattern,
+                    'follow_pattern' => $from->follow_pattern,
+                    'fields'         => $from->fields,
+                    'max_pages'      => $from->max_pages,
+                    'max_depth'      => $from->max_depth,
+                    'delay_ms'       => $from->delay_ms,
+                    'concurrency'    => $from->concurrency,
+                    'respect_robots' => $from->respect_robots,
+                ];
+            }
+        }
+
+        return Inertia::render('Crawler/Create', ['prefill' => $prefill]);
     }
 
     public function store(StoreCrawlTaskRequest $request)
@@ -74,6 +95,7 @@ class CrawlTaskController extends Controller
             'max_pages'      => $d['max_pages'],
             'max_depth'      => $d['max_depth'],
             'delay_ms'       => $d['delay_ms'],
+            'concurrency'    => $d['concurrency'],
             'respect_robots' => (bool) $d['respect_robots'],
             'status'         => 'pending',
         ]);
@@ -206,6 +228,7 @@ class CrawlTaskController extends Controller
             'fields'         => $t->fields,
             'max_depth'      => $t->max_depth,
             'delay_ms'       => $t->delay_ms,
+            'concurrency'    => $t->concurrency,
             'respect_robots' => $t->respect_robots,
         ];
     }
